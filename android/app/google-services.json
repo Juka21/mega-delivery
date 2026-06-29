@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "158452862906",
+    "project_id": "mega-delivery-44580",
+    "storage_bucket": "mega-delivery-44580.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:158452862906:android:0a5386b760c54445b59783",
+        "android_client_info": {
+          "package_name": "com.mycompany.megadelivey"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "158452862906-45svvstn938m9e395vlk5phvc2v016a4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mycompany.megadelivey",
+            "certificate_hash": "1ce9888d0f09eec0727b00790c1c3d618f98247e"
+          }
+        },
+        {
+          "client_id": "158452862906-1t5eo38n9tmgr3nilcbbu5rsm0mki3fj.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAahes19d6nCSWaaw6xVCglkEi5K5_f64o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "158452862906-1t5eo38n9tmgr3nilcbbu5rsm0mki3fj.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "158452862906-cu077il8n0gdb56rd9386nsicuvi9big.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.mycompany.megadelivey"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
