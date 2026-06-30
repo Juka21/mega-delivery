@@ -7,6 +7,11 @@ import '../config/app_config.dart';
 class StripeService {
   static Future<bool> makePayment(double total, String currency) async {
     try {
+      if (AppConfig.stripePublishableKey.isEmpty) {
+        throw Exception(
+            'Chave publica da Stripe nao configurada. Define STRIPE_PUBLISHABLE_KEY ao compilar a app.');
+      }
+
       final amountInCents = (total * 100).round();
       final normalizedCurrency = currency.toLowerCase();
       final callable = FirebaseFunctions.instanceFor(region: 'us-central1')
@@ -68,9 +73,23 @@ class StripeService {
 
       await Stripe.instance.presentPaymentSheet();
       return true;
+    } on StripeException catch (e) {
+      if (e.error.code == FailureCode.Canceled) {
+        return false;
+      }
+
+      final message = e.error.localizedMessage ??
+          e.error.message ??
+          'Nao foi possivel abrir o pagamento Stripe.';
+      debugPrint('Stripe payment failed: $message');
+      throw Exception(message);
+    } on FirebaseFunctionsException catch (e) {
+      final message = e.message ?? 'Erro na funcao de pagamento Stripe.';
+      debugPrint('Stripe function failed: ${e.code} - $message');
+      throw Exception(message);
     } catch (e) {
       debugPrint('Stripe payment failed: $e');
-      return false;
+      rethrow;
     }
   }
 }

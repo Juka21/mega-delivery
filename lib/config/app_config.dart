@@ -16,7 +16,7 @@ class AppConfig {
 
   static const String googleGeocodingApiKey = String.fromEnvironment(
     'GOOGLE_GEOCODING_API_KEY',
-    defaultValue: '',
+    defaultValue: 'AIzaSyDIT0QuNYL0fMrVYDxMw70dI9STwysbT34',
   );
 
   static const String googleSignInServerClientId = String.fromEnvironment(

@@ -86,6 +86,9 @@ class _CartScreenState extends State<CartScreen> {
         _taxaEntrega = 0.0;
         _distanciaKm = 0.0;
         _erroGeocoding = "";
+        _foraDoRaio = false;
+        _clienteLat = null;
+        _clienteLng = null;
       });
       return;
     }
@@ -148,6 +151,9 @@ class _CartScreenState extends State<CartScreen> {
         setState(() {
           _clienteLat = null;
           _clienteLng = null;
+          _distanciaKm = 0.0;
+          _taxaEntrega = 0.0;
+          _foraDoRaio = false;
         });
         setState(() => _erroGeocoding = "Erro Google: ${data['status']}");
       }
@@ -165,6 +171,23 @@ class _CartScreenState extends State<CartScreen> {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text("Adiciona uma morada para a entrega!"),
             backgroundColor: Colors.orange));
+        return;
+      }
+      if (_clienteLat == null ||
+          _clienteLng == null ||
+          _erroGeocoding.isNotEmpty) {
+        await _calcularTaxaEntrega();
+      }
+      if (_clienteLat == null ||
+          _clienteLng == null ||
+          _erroGeocoding.isNotEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(_erroGeocoding.isNotEmpty
+                  ? _erroGeocoding
+                  : "Nao foi possivel validar a morada de entrega."),
+              backgroundColor: Colors.orange));
+        }
         return;
       }
       if (_foraDoRaio) {
@@ -185,8 +208,9 @@ class _CartScreenState extends State<CartScreen> {
     try {
       if (total < 0.50) throw Exception("O valor mínimo é 0.50€");
       bool pagou = await StripeService.makePayment(total, "eur");
-      if (pagou)
+      if (pagou) {
         await _processarPedido(itens, total, "Cartão (Stripe)", cartDocIds);
+      }
     } catch (e) {
       if (mounted)
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
