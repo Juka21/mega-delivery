@@ -89,6 +89,26 @@ class DatabaseService {
         .compareTo(_dateToIso(a['dataHora'] ?? a['createdAt']));
   }
 
+  String _dayId(DateTime date) {
+    final local = date.toLocal();
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    return '${local.year}-$month-$day';
+  }
+
+  DateTime _localOrderDate(Map<String, dynamic> data) {
+    final value = _dateToIso(data['dataHora'] ?? data['createdAt']);
+    return DateTime.tryParse(value)?.toLocal() ?? DateTime.now();
+  }
+
+  bool _isSameLocalDay(DateTime a, DateTime b) {
+    final localA = a.toLocal();
+    final localB = b.toLocal();
+    return localA.year == localB.year &&
+        localA.month == localB.month &&
+        localA.day == localB.day;
+  }
+
   int _menuCategoryIndex(String categoria) {
     final index = menuSeedCategories.indexOf(categoria);
     return index == -1 ? menuSeedCategories.length : index;
@@ -323,6 +343,76 @@ class DatabaseService {
         .orderBy('createdAt', descending: true)
         .get();
     return snapshot.docs.map(_normalizePedido).toList();
+  }
+
+  Stream<List<Map<String, dynamic>>> get cashClosuresStream {
+    return _db
+        .collection('fechos_caixa')
+        .orderBy('data', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              final data = _withId(doc);
+              data['data'] = _dateToIso(data['data'] ?? data['createdAt']);
+              return data;
+            }).toList());
+  }
+
+  Future<Map<String, dynamic>> closeCashDay(DateTime day) async {
+    final allOrders = await getAllOrders();
+    final dayOrders = allOrders
+        .where(_isCurrentUserOrder)
+        .where((order) => _isSameLocalDay(_localOrderDate(order), day))
+        .toList();
+
+    final activeOrders = dayOrders.where((order) {
+      final status = order['status']?.toString() ?? '';
+      return status != 'Concluído' && status != 'Cancelado';
+    }).toList();
+
+    if (activeOrders.isNotEmpty) {
+      return {
+        'success': false,
+        'message':
+            'Ainda tens ${activeOrders.length} pedido(s) por concluir antes de fechar o dia.',
+      };
+    }
+
+    final completedOrders = dayOrders
+        .where((order) => order['status']?.toString() == 'Concluído')
+        .toList();
+
+    if (completedOrders.isEmpty) {
+      return {
+        'success': false,
+        'message': 'Não existem pedidos concluídos para fechar neste dia.',
+      };
+    }
+
+    final total = completedOrders.fold<double>(
+      0,
+      (totalSoFar, order) =>
+          totalSoFar + ((order['total'] as num?)?.toDouble() ?? 0),
+    );
+    final id = _dayId(day);
+    final dataFecho = DateTime(day.year, day.month, day.day);
+
+    await _db.collection('fechos_caixa').doc(id).set({
+      'id': id,
+      'data': dataFecho.toIso8601String(),
+      'total': total,
+      'pedidos': completedOrders.length,
+      'pedidoIds': completedOrders
+          .map((order) => order['id']?.toString() ?? order['_id']?.toString())
+          .where((id) => id != null && id.isNotEmpty)
+          .toList(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    return {
+      'success': true,
+      'message': 'Dia fechado com ${total.toStringAsFixed(2)} EUR.',
+    };
   }
 
   Future<List<Map<String, dynamic>>> getOrdersForUser(String userId) async {

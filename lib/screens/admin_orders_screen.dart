@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/database_service.dart';
 import '../services/printer_service.dart';
@@ -186,6 +187,18 @@ class AdminOrdersScreen extends StatelessWidget {
 class CompletedOrdersScreen extends StatelessWidget {
   const CompletedOrdersScreen({super.key});
 
+  Future<void> _closeToday(BuildContext context, DatabaseService db) async {
+    final result = await db.closeCashDay(DateTime.now());
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(result['message']?.toString() ?? 'Fecho atualizado.'),
+        backgroundColor:
+            result['success'] == true ? Colors.green : Colors.orange,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final db = DatabaseService();
@@ -211,7 +224,8 @@ class CompletedOrdersScreen extends StatelessWidget {
           final pedidos = (snapshot.data ?? [])
               .where((pedido) =>
                   (pedido['status'] ?? '').toString() ==
-                  AdminOrdersScreen.completed)
+                      AdminOrdersScreen.completed &&
+                  _isSameDay(_orderDate(pedido), DateTime.now()))
               .toList();
           final total = pedidos.fold<double>(
             0,
@@ -231,7 +245,7 @@ class CompletedOrdersScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Total concluído',
+                      'Total concluído hoje',
                       style: TextStyle(color: Colors.white70),
                     ),
                     const SizedBox(height: 8),
@@ -251,6 +265,28 @@ class CompletedOrdersScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: () => _closeToday(context, db),
+                  icon: const Icon(Icons.lock_clock_rounded),
+                  label: const Text(
+                    'Fechar dia de hoje',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _CashStatsPanel(db: db),
               const SizedBox(height: 16),
               if (pedidos.isEmpty)
                 const Center(child: Text('Ainda não há pedidos concluídos.'))
@@ -283,6 +319,200 @@ class CompletedOrdersScreen extends StatelessWidget {
 
   String _shortId(String id) {
     return id.length > 5 ? id.substring(id.length - 5).toUpperCase() : id;
+  }
+
+  DateTime _orderDate(Map<String, dynamic> pedido) {
+    final value =
+        pedido['dataHora']?.toString() ?? pedido['createdAt']?.toString() ?? '';
+    return DateTime.tryParse(value)?.toLocal() ?? DateTime.now();
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+}
+
+class _CashStatsPanel extends StatelessWidget {
+  final DatabaseService db;
+
+  const _CashStatsPanel({required this.db});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: db.cashClosuresStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final closures = snapshot.data ?? [];
+        final now = DateTime.now();
+        final dayTotal = _sumWhere(
+          closures,
+          (date) => _isSameDay(date, now),
+        );
+        final weekTotal = _sumWhere(
+          closures,
+          (date) => _isSameWeek(date, now),
+        );
+        final monthTotal = _sumWhere(
+          closures,
+          (date) => date.year == now.year && date.month == now.month,
+        );
+        final yearTotal = _sumWhere(
+          closures,
+          (date) => date.year == now.year,
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Estatísticas de caixa',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 10),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 1.65,
+              children: [
+                _StatTile(label: 'Hoje', total: dayTotal),
+                _StatTile(label: 'Semana', total: weekTotal),
+                _StatTile(label: 'Mês', total: monthTotal),
+                _StatTile(label: 'Ano', total: yearTotal),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text('Dia',
+                              style: TextStyle(fontWeight: FontWeight.w900)),
+                        ),
+                        Text('Pedidos',
+                            style: TextStyle(fontWeight: FontWeight.w900)),
+                        SizedBox(width: 22),
+                        Text('Total',
+                            style: TextStyle(fontWeight: FontWeight.w900)),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  if (closures.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('Ainda não existem dias fechados.'),
+                    )
+                  else
+                    ...closures.take(30).map((closure) {
+                      final date = _closureDate(closure);
+                      final total =
+                          (closure['total'] as num?)?.toDouble() ?? 0.0;
+                      final pedidos =
+                          (closure['pedidos'] as num?)?.toInt() ?? 0;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child:
+                                  Text(DateFormat('dd/MM/yyyy').format(date)),
+                            ),
+                            Text('$pedidos'),
+                            const SizedBox(width: 42),
+                            Text(
+                              '${total.toStringAsFixed(2)} EUR',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  double _sumWhere(
+    List<Map<String, dynamic>> closures,
+    bool Function(DateTime date) test,
+  ) {
+    return closures.fold<double>(0, (sum, closure) {
+      final date = _closureDate(closure);
+      if (!test(date)) return sum;
+      return sum + ((closure['total'] as num?)?.toDouble() ?? 0.0);
+    });
+  }
+
+  DateTime _closureDate(Map<String, dynamic> closure) {
+    return DateTime.tryParse(closure['data']?.toString() ?? '')?.toLocal() ??
+        DateTime.now();
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _isSameWeek(DateTime date, DateTime now) {
+    final currentDay = DateTime(now.year, now.month, now.day);
+    final weekStart =
+        currentDay.subtract(Duration(days: currentDay.weekday - 1));
+    final weekEnd = weekStart.add(const Duration(days: 7));
+    final target = DateTime(date.year, date.month, date.day);
+    return !target.isBefore(weekStart) && target.isBefore(weekEnd);
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final String label;
+  final double total;
+
+  const _StatTile({required this.label, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey[600])),
+          const SizedBox(height: 6),
+          Text(
+            '${total.toStringAsFixed(2)} EUR',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
   }
 }
 
