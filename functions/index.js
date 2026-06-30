@@ -47,17 +47,14 @@ exports.createStripePaymentSheet = onCall(
         { apiVersion: "2023-10-16" }
       );
 
-      // 3️⃣ Payment Intent - MODO AUTOMÁTICO
+      // 3 Payment Intent
       const paymentIntent = await stripe.paymentIntents.create({
         amount: parsedAmount,
         currency: parsedCurrency,
         customer: customer.id,
+        receipt_email: request.auth.token.email,
         metadata: { uid: request.auth.uid },
-        // 👇 A MÁGICA ESTÁ AQUI:
-        // Dizemos "Enabled: true" e o Stripe decide o resto baseado no teu Dashboard.
-        automatic_payment_methods: {
-          enabled: true,
-        },
+        payment_method_types: ["card", "multibanco"],
       });
 
       return {
@@ -166,7 +163,7 @@ exports.enviarNotificacaoChat = onDocumentCreated("pedidos/{pedidoId}/messages/{
 
     if (!receiverId) return null;
 
-    // 3. Buscar Token na Coleção CERTA
+    // 3. Buscar Token na Colecao CERTA
     const userSnapshot = await admin.firestore().collection(targetCollection).doc(receiverId).get();
     const userData = userSnapshot.data();
 
