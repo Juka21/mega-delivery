@@ -178,6 +178,7 @@ class DatabaseService {
   Future<void> addToCart({
     required Prato prato,
     required int quantidade,
+    double? precoUnitario,
     List<String> ingredientesRemovidos = const [],
     String? notaCliente,
     List<Map<String, dynamic>> extras = const [],
@@ -225,7 +226,7 @@ class DatabaseService {
         '_id': DateTime.now().millisecondsSinceEpoch.toString(),
         'pratoId': prato.id,
         'nome': prato.nome,
-        'preco': prato.preco,
+        'preco': precoUnitario ?? prato.preco,
         'imageUrl': prato.imageUrl,
         'quantidade': quantidade,
         'ingredientesRemovidos': ingredientesRemovidos,

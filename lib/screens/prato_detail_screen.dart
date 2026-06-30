@@ -81,9 +81,15 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
   }
 
   Future<void> _adicionarAoCarrinho(Prato prato) async {
+    final precoExtras = _extrasSelecionados.fold<double>(
+      0,
+      (sum, item) => sum + ((item['preco'] as num?)?.toDouble() ?? 0),
+    );
+
     await _db.addToCart(
       prato: prato,
       quantidade: _quantidade,
+      precoUnitario: prato.preco + precoExtras,
       ingredientesRemovidos: _ingredientesRemovidos,
       notaCliente: _notaController.text.trim(),
       extras: _extrasSelecionados,

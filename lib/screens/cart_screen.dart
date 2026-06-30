@@ -27,6 +27,10 @@ class _CartScreenState extends State<CartScreen> {
 
   final double restauranteLat = 39.74476840811788;
   final double restauranteLng = -8.93533315869812;
+  static const double _raioEntregaClienteKm = 10.0;
+  static const double _distanciaBaseEntregaKm = 5.0;
+  static const double _taxaBaseEntrega = 3.50;
+  static const double _taxaPorKmExtra = 1.0;
 
   String _tipoEntrega = "Entrega";
   double _taxaEntrega = 3.50;
@@ -142,10 +146,10 @@ class _CartScreenState extends State<CartScreen> {
             _clienteLat = destLat;
             _clienteLng = destLng;
             _distanciaKm = distanciaKm;
-            _foraDoRaio = distanciaKm > 15.0;
-            _taxaEntrega = _foraDoRaio
-                ? 0.0
-                : 3.50 + (distanciaKm > 5.0 ? (distanciaKm - 5.0) * 1.0 : 0.0);
+            _foraDoRaio =
+                !_isAdminUser() && distanciaKm > _raioEntregaClienteKm;
+            _taxaEntrega =
+                _foraDoRaio ? 0.0 : _calcularTaxaPorDistancia(distanciaKm);
           });
         }
       } else {
@@ -201,7 +205,8 @@ class _CartScreenState extends State<CartScreen> {
       }
       if (_foraDoRaio) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text("Esta morada está fora da nossa área de entrega!"),
+            content:
+                Text("Esta morada está fora do limite de entrega de 10 km."),
             backgroundColor: Colors.red));
         return;
       }
@@ -230,10 +235,18 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   bool _podeFazerPedidoAgora() {
+    return _isAdminUser() || OpeningHoursService.canPlaceOrder(DateTime.now());
+  }
+
+  bool _isAdminUser() {
     final user = AuthService().currentUser ?? currentUser;
-    final isAdmin =
-        user?.role == 'admin' || AppConfig.isAdminEmail(user?.email);
-    return isAdmin || OpeningHoursService.canPlaceOrder(DateTime.now());
+    return user?.role == 'admin' || AppConfig.isAdminEmail(user?.email);
+  }
+
+  double _calcularTaxaPorDistancia(double distanciaKm) {
+    if (distanciaKm <= _distanciaBaseEntregaKm) return _taxaBaseEntrega;
+    final kmExtra = (distanciaKm - _distanciaBaseEntregaKm).ceilToDouble();
+    return _taxaBaseEntrega + (kmExtra * _taxaPorKmExtra);
   }
 
   Future<void> _processarPedido(List<Map<String, dynamic>> itens, double total,
@@ -253,6 +266,8 @@ class _CartScreenState extends State<CartScreen> {
         'total': total,
         'metodoEntrega': _tipoEntrega,
         'morada': moradaFinal,
+        'taxaEntrega': _tipoEntrega == "Entrega" ? _taxaEntrega : 0.0,
+        'distanciaKm': _tipoEntrega == "Entrega" ? _distanciaKm : 0.0,
         'clienteLat': _tipoEntrega == "Entrega" ? _clienteLat : null,
         'clienteLng': _tipoEntrega == "Entrega" ? _clienteLng : null,
         'driverId': _tipoEntrega == "Entrega" ? _selectedDriverId : null,
@@ -652,7 +667,7 @@ class _CartScreenState extends State<CartScreen> {
                     const Padding(
                         padding: EdgeInsets.only(top: 8),
                         child: Text(
-                            "Lamentamos, estás fora do nosso raio de entrega! 🚫",
+                            "Lamentamos, estás fora do limite de entrega de 10 km!",
                             style: TextStyle(
                                 color: Colors.red,
                                 fontWeight: FontWeight.bold,
