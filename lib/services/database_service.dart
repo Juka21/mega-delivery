@@ -270,6 +270,25 @@ class DatabaseService {
     }
   }
 
+  Future<void> updateCartItemQuantity(String itemId, int quantity) async {
+    if (quantity <= 0) {
+      await removeFromCart(itemId);
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final cartString = prefs.getString('cart');
+    if (cartString == null) return;
+
+    final cart = json.decode(cartString) as List<dynamic>;
+    final index = cart
+        .indexWhere((item) => item['_id'] == itemId || item['id'] == itemId);
+    if (index == -1) return;
+
+    cart[index]['quantidade'] = quantity;
+    await prefs.setString('cart', json.encode(cart));
+  }
+
   Future<void> clearCart() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('cart');

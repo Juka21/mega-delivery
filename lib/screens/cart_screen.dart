@@ -342,14 +342,23 @@ class _CartScreenState extends State<CartScreen> {
           return Column(
             children: [
               Expanded(
-                  child: ListView.builder(
-                      padding: const EdgeInsets.only(
-                          left: 20, right: 20, top: 20, bottom: 120),
-                      itemCount: cartItems.length,
-                      itemBuilder: (context, index) => _buildCartItem(
-                          cartItems[index]['_id'] ?? cartItems[index]['id'],
-                          cartItems[index]))),
-              _buildProsseguirBar(subtotal, itensParaPedido, cartDocIds),
+                child: ListView.builder(
+                  padding: const EdgeInsets.only(
+                      left: 18, right: 18, top: 18, bottom: 130),
+                  itemCount: cartItems.length + 1,
+                  itemBuilder: (context, index) {
+                    if (index == 0) {
+                      return _buildCartHeader(cartItems.length, subtotal);
+                    }
+                    final item = cartItems[index - 1];
+                    return _buildModernCartItem(
+                      item['_id'] ?? item['id'],
+                      item,
+                    );
+                  },
+                ),
+              ),
+              _buildModernProsseguirBar(subtotal, itensParaPedido, cartDocIds),
             ],
           );
         },
@@ -368,6 +377,7 @@ class _CartScreenState extends State<CartScreen> {
     ]));
   }
 
+  // ignore: unused_element
   Widget _buildCartItem(String docId, Map<String, dynamic> data) {
     // Lemos as listas que guardaste na base de dados (Hambúrguer)
     List<dynamic> ingRemovidos = data['ingredientesRemovidos'] is String
@@ -485,6 +495,433 @@ class _CartScreenState extends State<CartScreen> {
         ));
   }
 
+  Widget _buildCartHeader(int itemCount, double subtotal) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF151A20),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.receipt_long_rounded,
+                color: Colors.white, size: 28),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Revê o teu pedido",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "$itemCount item(ns) no carrinho",
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            "${subtotal.toStringAsFixed(2)}€",
+            style: const TextStyle(
+              color: Color(0xFFFF8A00),
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModernCartItem(String docId, Map<String, dynamic> data) {
+    final ingRemovidos = _readList(data['ingredientesRemovidos']);
+    final molhos =
+        _readList(data['molhosSelecionados'] ?? data['molhos'] ?? []);
+    final extras = _readList(data['extras']);
+    final nota = data['notaCliente'] ?? data['nota'] ?? '';
+    final quantidade = (data['quantidade'] as num?)?.toInt() ?? 1;
+    final precoUnitario = (data['preco'] as num?)?.toDouble() ?? 0.0;
+    final totalLinha = precoUnitario * quantidade;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE8ECF2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Image.network(
+                  data['imageUrl'] ?? '',
+                  width: 86,
+                  height: 86,
+                  fit: BoxFit.cover,
+                  errorBuilder: (c, e, s) => Container(
+                    width: 86,
+                    height: 86,
+                    color: const Color(0xFFF0F2F5),
+                    child:
+                        const Icon(Icons.fastfood_rounded, color: Colors.grey),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            data['nome']?.toString() ?? 'Item',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 18,
+                              color: Color(0xFF151A20),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              color: Colors.redAccent),
+                          onPressed: () => db.removeFromCart(docId),
+                        )
+                      ],
+                    ),
+                    Text(
+                      "${precoUnitario.toStringAsFixed(2)}€ cada",
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        _buildQuantityControl(docId, quantidade),
+                        const Spacer(),
+                        Text(
+                          "${totalLinha.toStringAsFixed(2)}€",
+                          style: const TextStyle(
+                            color: Color(0xFFFF8A00),
+                            fontSize: 19,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (ingRemovidos.isNotEmpty ||
+              molhos.isNotEmpty ||
+              extras.isNotEmpty ||
+              nota.toString().trim().isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F8FA),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Detalhes escolhidos",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF151A20),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (ingRemovidos.isNotEmpty)
+                    _buildDetailLine(
+                      icon: Icons.remove_circle_outline_rounded,
+                      color: Colors.red,
+                      label: "Sem",
+                      value: ingRemovidos.join(', '),
+                    ),
+                  if (molhos.isNotEmpty)
+                    _buildDetailLine(
+                      icon: Icons.water_drop_outlined,
+                      color: Colors.blue,
+                      label: "Molhos",
+                      value: molhos.join(', '),
+                    ),
+                  if (extras.isNotEmpty) _buildExtrasLines(extras),
+                  if (nota.toString().trim().isNotEmpty)
+                    _buildDetailLine(
+                      icon: Icons.sticky_note_2_outlined,
+                      color: Colors.orange,
+                      label: "Nota",
+                      value: nota.toString(),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  List<dynamic> _readList(dynamic value) {
+    if (value is String && value.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        return decoded is List ? decoded : [];
+      } catch (_) {
+        return [];
+      }
+    }
+    return value is List ? value : [];
+  }
+
+  Widget _buildQuantityControl(String docId, int quantidade) {
+    return Container(
+      height: 38,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F2F5),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.remove_rounded),
+            onPressed: () => db.updateCartItemQuantity(docId, quantidade - 1),
+          ),
+          SizedBox(
+            width: 28,
+            child: Text(
+              '$quantidade',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.add_rounded),
+            onPressed: () => db.updateCartItemQuantity(docId, quantidade + 1),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailLine({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required String value,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  color: Color(0xFF3A414A),
+                  fontSize: 13,
+                  height: 1.25,
+                ),
+                children: [
+                  TextSpan(
+                    text: "$label: ",
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  TextSpan(text: value),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExtrasLines(List<dynamic> extras) {
+    return Column(
+      children: extras.map((extra) {
+        final map = extra is Map ? extra : {};
+        final nome = map['nome']?.toString() ?? 'Extra';
+        final preco = (map['preco'] as num?)?.toDouble() ?? 0.0;
+        return _buildDetailLine(
+          icon: Icons.add_circle_outline_rounded,
+          color: Colors.green,
+          label: "Extra",
+          value: "$nome (+${preco.toStringAsFixed(2)}€)",
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildModernProsseguirBar(double subtotal,
+      List<Map<String, dynamic>> itens, List<String> cartDocIds) {
+    final canOrderNow = _podeFazerPedidoAgora();
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          )
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF8A00).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.shopping_bag_rounded,
+                      color: Color(0xFFFF8A00)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Subtotal do pedido",
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        "${subtotal.toStringAsFixed(2)}€",
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF151A20),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!canOrderNow)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      "Fora de horário",
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            BouncyButton(
+              onPressed: () async {
+                await _carregarMoradasDoCliente();
+                await _carregarMotoristasAtivos();
+                _showDeliveryOptions(subtotal, itens, cartDocIds);
+              },
+              child: Container(
+                height: 60,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF8A00),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFF8A00).withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    )
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    "REVER ENTREGA E PAGAR • ${subtotal.toStringAsFixed(2)}€",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ignore: unused_element
   Widget _buildProsseguirBar(double subtotal, List<Map<String, dynamic>> itens,
       List<String> cartDocIds) {
     return Container(

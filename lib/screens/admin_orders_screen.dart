@@ -380,7 +380,7 @@ class _CashStatsPanelState extends State<_CashStatsPanel> {
               physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              childAspectRatio: 1.65,
+              childAspectRatio: 1.45,
               children: [
                 _StatTile(
                   label: 'Dia',
@@ -649,19 +649,26 @@ class _StatTile extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Text(
-              '${total.toStringAsFixed(2)} EUR',
-              style: TextStyle(
-                color: selected ? Colors.white : Colors.black,
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${total.toStringAsFixed(2)} EUR',
+                style: TextStyle(
+                  color: selected ? Colors.white : Colors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
             const SizedBox(height: 4),
             Text(
               '$sales vendas',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: selected ? Colors.white70 : Colors.grey[600],
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -784,8 +791,8 @@ class _TrendChartPainter extends CustomPainter {
     final moneyOffsets = _offsetsForMoney(chartRect, moneyMax);
     final salesOffsets = _offsetsForSales(chartRect, salesMax);
 
-    _drawLine(canvas, moneyOffsets, Colors.deepOrange);
-    _drawLine(canvas, salesOffsets, Colors.blue);
+    _drawLine(canvas, salesOffsets, Colors.blue, verticalShift: 4);
+    _drawLine(canvas, moneyOffsets, Colors.deepOrange, verticalShift: -4);
     _drawLabels(canvas, chartRect);
   }
 
@@ -828,8 +835,16 @@ class _TrendChartPainter extends CustomPainter {
     return rect.left + (rect.width / (points.length - 1)) * index;
   }
 
-  void _drawLine(Canvas canvas, List<Offset> offsets, Color color) {
+  void _drawLine(
+    Canvas canvas,
+    List<Offset> offsets,
+    Color color, {
+    double verticalShift = 0,
+  }) {
     if (offsets.isEmpty) return;
+    final shiftedOffsets = offsets
+        .map((offset) => Offset(offset.dx, offset.dy + verticalShift))
+        .toList();
     final paint = Paint()
       ..color = color
       ..strokeWidth = 3
@@ -837,12 +852,13 @@ class _TrendChartPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     final dotPaint = Paint()..color = color;
-    final path = Path()..moveTo(offsets.first.dx, offsets.first.dy);
-    for (final offset in offsets.skip(1)) {
+    final path = Path()
+      ..moveTo(shiftedOffsets.first.dx, shiftedOffsets.first.dy);
+    for (final offset in shiftedOffsets.skip(1)) {
       path.lineTo(offset.dx, offset.dy);
     }
     canvas.drawPath(path, paint);
-    for (final offset in offsets) {
+    for (final offset in shiftedOffsets) {
       canvas.drawCircle(offset, 3.5, dotPaint);
     }
   }
