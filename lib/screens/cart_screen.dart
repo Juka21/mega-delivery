@@ -8,6 +8,7 @@ import '../services/database_service.dart';
 import 'order_success_screen.dart';
 import 'address_screen.dart';
 import '../widgets/bouncy_button.dart';
+import '../services/opening_hours_service.dart';
 import '../services/stripe_service.dart';
 
 class CartScreen extends StatefulWidget {
@@ -166,6 +167,14 @@ class _CartScreenState extends State<CartScreen> {
 
   Future<void> _iniciarPagamento(double total, List<Map<String, dynamic>> itens,
       List<String> cartDocIds) async {
+    if (!_podeFazerPedidoAgora()) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              "Estamos fechados para pedidos. Horario: ${OpeningHoursService.scheduleLabel}."),
+          backgroundColor: Colors.orange));
+      return;
+    }
+
     if (_tipoEntrega == "Entrega") {
       if (_moradaSelecionada == null) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -218,6 +227,13 @@ class _CartScreenState extends State<CartScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  bool _podeFazerPedidoAgora() {
+    final user = AuthService().currentUser ?? currentUser;
+    final isAdmin =
+        user?.role == 'admin' || AppConfig.isAdminEmail(user?.email);
+    return isAdmin || OpeningHoursService.canPlaceOrder(DateTime.now());
   }
 
   Future<void> _processarPedido(List<Map<String, dynamic>> itens, double total,

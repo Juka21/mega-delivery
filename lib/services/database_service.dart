@@ -490,12 +490,25 @@ class DatabaseService {
         .map((doc) => doc.exists ? _withId(doc) : null);
   }
 
-  Future<void> updateOrderStatus(String pedidoId, String novoEstado) async {
-    await _db.collection('pedidos').doc(pedidoId).set({
+  Future<void> updateOrderStatus(
+    String pedidoId,
+    String novoEstado, {
+    String? tempoEstimado,
+  }) async {
+    final data = <String, dynamic>{
       'status': novoEstado,
       'estado': novoEstado,
       'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    };
+
+    if (tempoEstimado != null) {
+      data['tempoEstimado'] = tempoEstimado;
+    }
+
+    await _db.collection('pedidos').doc(pedidoId).set(
+          data,
+          SetOptions(merge: true),
+        );
   }
 
   Future<void> updateDriver(String driverId, Map<String, dynamic> dados) async {
