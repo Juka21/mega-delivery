@@ -44,13 +44,35 @@ const List<String> defaultMenuSauces = [
 ];
 
 const List<Map<String, dynamic>> defaultMenuExtras = [
-  {'nome': 'Ingrediente Extra Normal', 'preco': 1.70},
-  {'nome': 'Ingrediente Extra Mega', 'preco': 2.00},
+  {'nome': 'Queijo', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Fiambre', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Bacon', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Ovo', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Salsicha', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Linguiça', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Batata Palha', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Batata Frita', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Cebola', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Atum', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Kebab', 'preco': 1.70, 'precoMega': 2.00},
   {'nome': 'Molho Francesinha', 'preco': 2.00},
 ];
 
+const List<Map<String, dynamic>> defaultIngredientExtras = [
+  {'nome': 'Queijo', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Fiambre', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Bacon', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Ovo', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Salsicha', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Linguiça', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Batata Palha', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Batata Frita', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Cebola', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Atum', 'preco': 1.70, 'precoMega': 2.00},
+  {'nome': 'Kebab', 'preco': 1.70, 'precoMega': 2.00},
+];
+
 List<Map<String, dynamic>> menuExtrasForItem(Map<String, dynamic> item) {
-  final nome = item['nome']?.toString().toLowerCase() ?? '';
   final categoria = item['categoria']?.toString() ?? '';
 
   if (item['extras'] is List) {
@@ -65,15 +87,7 @@ List<Map<String, dynamic>> menuExtrasForItem(Map<String, dynamic> item) {
     ];
   }
 
-  if (nome.contains('mega')) {
-    return const [
-      {'nome': 'Ingrediente Extra Mega', 'preco': 2.00},
-    ];
-  }
-
-  return const [
-    {'nome': 'Ingrediente Extra Normal', 'preco': 1.70},
-  ];
+  return defaultIngredientExtras;
 }
 
 const List<Map<String, dynamic>> menuSeedItems = [

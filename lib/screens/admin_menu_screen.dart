@@ -428,9 +428,15 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
                       String nomeEx = extra['nome'];
                       bool isSelected =
                           extrasSelecionados.any((e) => e['nome'] == nomeEx);
+                      final precoNormal =
+                          (extra['preco'] as num?)?.toDouble() ?? 0;
+                      final precoMega =
+                          (extra['precoMega'] as num?)?.toDouble();
+                      final label = precoMega == null
+                          ? "$nomeEx (+${precoNormal.toStringAsFixed(2)}€)"
+                          : "$nomeEx (N ${precoNormal.toStringAsFixed(2)}€ / M ${precoMega.toStringAsFixed(2)}€)";
                       return FilterChip(
-                        label: Text(
-                            "$nomeEx (+${extra['preco'].toStringAsFixed(2)}€)"),
+                        label: Text(label),
                         selected: isSelected,
                         selectedColor: Colors.orange[200],
                         onSelected: (val) => setModalState(() => val

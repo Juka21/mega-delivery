@@ -58,9 +58,11 @@ void main() {
     expect(normalItem['categoria'], 'Hambúrgueres');
     expect(francesinha['categoria'], 'Francesinhas');
     expect(menuExtrasForItem(megaItem).map((extra) => extra['nome']),
-        ['Ingrediente Extra Mega']);
+        containsAll(['Ovo', 'Bacon', 'Queijo']));
+    expect(menuExtrasForItem(megaItem).first['precoMega'], 2.00);
     expect(menuExtrasForItem(normalItem).map((extra) => extra['nome']),
-        ['Ingrediente Extra Normal']);
+        containsAll(['Ovo', 'Bacon', 'Queijo']));
+    expect(menuExtrasForItem(normalItem).first['preco'], 1.70);
     expect(menuExtrasForItem(francesinha).map((extra) => extra['nome']),
         ['Molho Francesinha']);
   });

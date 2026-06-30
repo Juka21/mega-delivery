@@ -56,6 +56,29 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
         prato.extras.isNotEmpty;
   }
 
+  bool _isMegaPrato(Prato prato) {
+    final nome = prato.nome.toLowerCase();
+    final categoria = prato.categoria.toLowerCase();
+    return nome.contains('mega') || categoria.contains('mega');
+  }
+
+  double _extraPriceForPrato(Map<String, dynamic> extra, Prato prato) {
+    final normalPrice = (extra['preco'] as num?)?.toDouble() ?? 0;
+    if (!_isMegaPrato(prato)) return normalPrice;
+    return (extra['precoMega'] as num?)?.toDouble() ?? normalPrice;
+  }
+
+  Map<String, dynamic> _extraForCart(Map<String, dynamic> extra, Prato prato) {
+    final normalized = Map<String, dynamic>.from(extra);
+    normalized['preco'] = _extraPriceForPrato(extra, prato);
+    if (_isMegaPrato(prato) && extra.containsKey('precoMega')) {
+      normalized['tipoPreco'] = 'mega';
+    } else {
+      normalized['tipoPreco'] = 'normal';
+    }
+    return normalized;
+  }
+
   Future<void> _adicionarAoCarrinho(Prato prato) async {
     await _db.addToCart(
       prato: prato,
@@ -383,16 +406,16 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
         Column(
           children: [
             for (final extra in prato.extras)
-              _buildExtraTile(Map<String, dynamic>.from(extra)),
+              _buildExtraTile(Map<String, dynamic>.from(extra), prato),
           ],
         ),
       ],
     );
   }
 
-  Widget _buildExtraTile(Map<String, dynamic> extra) {
+  Widget _buildExtraTile(Map<String, dynamic> extra, Prato prato) {
     final nome = extra['nome']?.toString() ?? 'Extra';
-    final preco = (extra['preco'] as num?)?.toDouble() ?? 0;
+    final preco = _extraPriceForPrato(extra, prato);
     final selected = _extrasSelecionados.any((item) => item['nome'] == nome);
 
     return Padding(
@@ -408,7 +431,7 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
               if (selected) {
                 _extrasSelecionados.removeWhere((item) => item['nome'] == nome);
               } else {
-                _extrasSelecionados.add(extra);
+                _extrasSelecionados.add(_extraForCart(extra, prato));
               }
             });
           },
