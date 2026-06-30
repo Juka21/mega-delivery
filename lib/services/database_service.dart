@@ -69,6 +69,18 @@ class DatabaseService {
       data['categoria'] = 'Bitoques';
     }
 
+    final extras = data['extras'];
+    if (extras is List &&
+        extras.any((extra) {
+          final extraName =
+              extra is Map ? extra['nome']?.toString().toLowerCase() : '';
+          return extraName == 'ingrediente extra normal' ||
+              extraName == 'ingrediente extra mega' ||
+              extraName == 'ingrediente extra';
+        })) {
+      data['extras'] = defaultIngredientExtras;
+    }
+
     return data;
   }
 

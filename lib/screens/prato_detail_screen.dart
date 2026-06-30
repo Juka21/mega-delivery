@@ -80,6 +80,31 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
   }
 
   Future<void> _adicionarAoCarrinho(Prato prato) async {
+    if (prato.molhos.isNotEmpty && _molhosSelecionados.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.error_outline_rounded, color: Colors.white),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Escolhe um molho para continuar',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.orange[800],
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          margin: const EdgeInsets.all(18),
+        ),
+      );
+      return;
+    }
+
     await _db.addToCart(
       prato: prato,
       quantidade: _quantidade,
@@ -367,7 +392,7 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSubHeader(title: 'Molhos', subtitle: 'Opcional'),
+        _buildSubHeader(title: 'Molhos', subtitle: 'Escolhe 1'),
         const SizedBox(height: 12),
         Wrap(
           spacing: 9,
@@ -383,11 +408,9 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
                 unselectedIcon: Icons.add_rounded,
                 onTap: () {
                   setState(() {
-                    if (_molhosSelecionados.contains(molho)) {
-                      _molhosSelecionados.remove(molho);
-                    } else {
-                      _molhosSelecionados.add(molho);
-                    }
+                    _molhosSelecionados
+                      ..clear()
+                      ..add(molho);
                   });
                 },
               ),
