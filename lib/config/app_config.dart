@@ -11,7 +11,8 @@ class AppConfig {
 
   static const String stripePublishableKey = String.fromEnvironment(
     'STRIPE_PUBLISHABLE_KEY',
-    defaultValue: '',
+    defaultValue:
+        'pk_test_51SgmQbALgvF6kXvSPvBVaPWLV8Nef0iEfB7cJyWbR6dsOXQE53VUIJcuhuuilErMtRsi8c93D9KisJDjeEjvqPeF00S8jMQFo8',
   );
 
   static const String googleGeocodingApiKey = String.fromEnvironment(

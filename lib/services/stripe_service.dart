@@ -84,12 +84,23 @@ class StripeService {
       debugPrint('Stripe payment failed: $message');
       throw Exception(message);
     } on FirebaseFunctionsException catch (e) {
-      final message = e.message ?? 'Erro na funcao de pagamento Stripe.';
+      final message = _formatFirebaseStripeError(
+          e.message ?? 'Erro na funcao de pagamento Stripe.');
       debugPrint('Stripe function failed: ${e.code} - $message');
       throw Exception(message);
     } catch (e) {
       debugPrint('Stripe payment failed: $e');
       rethrow;
     }
+  }
+
+  static String _formatFirebaseStripeError(String message) {
+    final normalized = message.toLowerCase();
+    if (normalized.contains('invalid api key') ||
+        normalized.contains('pk_test') ||
+        normalized.contains('pk_live')) {
+      return 'A chave secreta da Stripe no Firebase esta errada. Em STRIPE_SECRET_KEY tens de usar uma chave sk_test_..., nao a pk_test_... publica.';
+    }
+    return message;
   }
 }
