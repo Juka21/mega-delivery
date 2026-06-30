@@ -17,6 +17,9 @@ void main() async {
     await NotificationService().inicializar();
     if (AppConfig.stripePublishableKey.isNotEmpty) {
       Stripe.publishableKey = AppConfig.stripePublishableKey;
+      Stripe.merchantIdentifier = AppConfig.stripeMerchantIdentifier;
+      Stripe.urlScheme = Uri.parse(AppConfig.stripeReturnUrl).scheme;
+      await Stripe.instance.applySettings();
     } else {
       debugPrint(
           "Stripe publishable key not configured. Pass STRIPE_PUBLISHABLE_KEY with --dart-define.");

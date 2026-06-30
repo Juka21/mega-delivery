@@ -1,4 +1,14 @@
 class AppConfig {
+  static const String stripeMerchantIdentifier = String.fromEnvironment(
+    'STRIPE_MERCHANT_IDENTIFIER',
+    defaultValue: 'merchant.pt.megacachorro.megadelivery',
+  );
+
+  static const String stripeReturnUrl = String.fromEnvironment(
+    'STRIPE_RETURN_URL',
+    defaultValue: 'flutterstripe://redirect',
+  );
+
   static const String stripePublishableKey = String.fromEnvironment(
     'STRIPE_PUBLISHABLE_KEY',
     defaultValue: '',
