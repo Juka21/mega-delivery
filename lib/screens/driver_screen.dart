@@ -41,6 +41,9 @@ class _DriverScreenState extends State<DriverScreen> {
     super.initState();
     _driverId = widget.driverId ?? AuthService().currentUser?.uid;
     _setDriverStatus('disponivel');
+    if (_driverId != null) {
+      _db.saveDriverToken(_driverId!);
+    }
     _ouvirPedidos();
   }
 

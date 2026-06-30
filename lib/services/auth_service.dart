@@ -65,10 +65,20 @@ class AuthService {
   Stream<AppUser?> get userChanges => _authStateController.stream;
   AppUser? currentUser;
   StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<String>? _tokenSubscription;
 
   Future<void> inicializar() async {
     await _syncCurrentUser(_auth.currentUser);
     _authSubscription ??= _auth.authStateChanges().listen(_syncCurrentUser);
+    _tokenSubscription ??=
+        FirebaseMessaging.instance.onTokenRefresh.listen((token) {
+      final uid = _auth.currentUser?.uid;
+      if (uid == null) return;
+      _db.collection('users').doc(uid).set({
+        'fcmToken': token,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
   }
 
   Future<String> getAuthToken() async {
