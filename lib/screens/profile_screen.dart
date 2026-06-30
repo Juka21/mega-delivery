@@ -4,6 +4,7 @@ import '../services/auth_service.dart';
 import 'admin_dashboard_screen.dart';
 import 'address_screen.dart';
 import 'edit_profile_screen.dart';
+import 'support_tickets_screen.dart';
 import '../services/database_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -95,8 +96,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _buildMenuCard([
                         _buildMenuItem(Icons.help_center_rounded, Colors.purple,
                             "Ajuda e Suporte", "Fale connosco", () {
-                          _launchURL(
-                              'mailto:mega.cachorro2014@gmail.com?subject=Ajuda%20App');
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const SupportTicketsScreen()));
                         }),
                         _buildDivider(),
                         _buildMenuItem(Icons.policy_rounded, Colors.grey,

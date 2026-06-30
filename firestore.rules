@@ -67,10 +67,32 @@ service cloud.firestore {
         allow read, create: if signedIn();
         allow update, delete: if isAdmin();
       }
+
+      match /delivery_messages/{messageId} {
+        allow read, create: if signedIn();
+        allow update, delete: if isAdmin();
+      }
     }
 
     match /fechos_caixa/{fechoId} {
       allow read, write: if isAdmin();
+    }
+
+    match /support_tickets/{ticketId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow read, update: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read, create: if isAdmin()
+          || (
+            signedIn()
+            && get(/databases/$(database)/documents/support_tickets/$(ticketId)).data.userId == request.auth.uid
+          );
+        allow update, delete: if isAdmin();
+      }
     }
   }
 }

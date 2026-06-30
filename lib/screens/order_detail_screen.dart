@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/pedido.dart';
 import '../services/database_service.dart';
+import 'chat_screen.dart';
 import 'tracking_screen.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
@@ -138,6 +139,41 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _accentColor,
+                    side: BorderSide(color: _accentColor.withOpacity(0.16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen.delivery(
+                          pedidoId: widget.pedido.id,
+                          title: 'Chat com o Estafeta',
+                          subtitle:
+                              '#${widget.pedido.id.substring(0, widget.pedido.id.length > 4 ? 4 : widget.pedido.id.length).toUpperCase()}',
+                        ),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.chat_bubble_rounded),
+                  label: const Text(
+                    "FALAR COM O ESTAFETA",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 30),

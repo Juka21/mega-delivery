@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/database_service.dart';
 import '../services/printer_service.dart';
+import 'chat_screen.dart';
 
 class AdminOrdersScreen extends StatelessWidget {
   const AdminOrdersScreen({super.key});
@@ -1004,6 +1005,21 @@ class _OrderCard extends StatelessWidget {
               onPressed: () => onCall(telefone),
               icon: const Icon(Icons.phone, size: 16),
               label: Text(telefone),
+            ),
+          if (metodoEntrega != 'Take-Away')
+            TextButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChatScreen.delivery(
+                    pedidoId: id,
+                    title: 'Chat Entrega',
+                    subtitle: cliente,
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.chat_bubble_rounded, size: 16),
+              label: const Text('Ver chat cliente/estafeta'),
             ),
           const Divider(),
           ...itens.map((item) {

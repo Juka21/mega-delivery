@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../config/app_config.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import 'chat_screen.dart';
 
 class DriverScreen extends StatefulWidget {
   final String? driverId;
@@ -252,6 +253,20 @@ class _DriverScreenState extends State<DriverScreen> {
     }
   }
 
+  void _abrirChatEntrega(String pedidoId) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChatScreen.delivery(
+          pedidoId: pedidoId,
+          title: 'Chat com o Cliente',
+          subtitle:
+              'Pedido #${pedidoId.length > 5 ? pedidoId.substring(pedidoId.length - 5) : pedidoId}',
+        ),
+      ),
+    );
+  }
+
   Future<void> _desligarTurno() async {
     await _setDriverStatus('offline');
     if (mounted) Navigator.of(context).pushReplacementNamed('/');
@@ -409,17 +424,33 @@ class _DriverScreenState extends State<DriverScreen> {
         : pedidoId;
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        leading: Icon(emCurso ? Icons.sports_motorsports : Icons.fastfood,
-            color: emCurso ? Colors.blue : Colors.orange),
-        title: Text('Pedido #$shortId',
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle:
-            Text(pedido['morada']?.toString() ?? 'Morada não especificada'),
-        trailing: ElevatedButton(
-          onPressed: () =>
-              emCurso ? _focarNoMapa(pedido) : _aceitarEntrega(pedido),
-          child: Text(emCurso ? 'Ver Mapa' : 'Aceitar'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: ListTile(
+          leading: Icon(emCurso ? Icons.sports_motorsports : Icons.fastfood,
+              color: emCurso ? Colors.blue : Colors.orange),
+          title: Text('Pedido #$shortId',
+              style: const TextStyle(fontWeight: FontWeight.bold)),
+          subtitle:
+              Text(pedido['morada']?.toString() ?? 'Morada não especificada'),
+          trailing: Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (emCurso)
+                IconButton(
+                  tooltip: 'Chat',
+                  onPressed: () => _abrirChatEntrega(pedidoId),
+                  icon: const Icon(Icons.chat_bubble_rounded),
+                  color: Colors.orange,
+                ),
+              ElevatedButton(
+                onPressed: () =>
+                    emCurso ? _focarNoMapa(pedido) : _aceitarEntrega(pedido),
+                child: Text(emCurso ? 'Mapa' : 'Aceitar'),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -457,19 +488,35 @@ class _DriverScreenState extends State<DriverScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 12)]),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-              child: OutlinedButton.icon(
-                  onPressed: _abrirMapaExterno,
-                  icon: const Icon(Icons.map),
-                  label: const Text('Abrir GPS'))),
-          const SizedBox(width: 10),
-          Expanded(
-              child: ElevatedButton.icon(
-                  onPressed: _finalizarEntrega,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Entregue'))),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _pedidoAtivoId == null
+                  ? null
+                  : () => _abrirChatEntrega(_pedidoAtivoId!),
+              icon: const Icon(Icons.chat_bubble_rounded),
+              label: const Text('Falar com Cliente'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                  child: OutlinedButton.icon(
+                      onPressed: _abrirMapaExterno,
+                      icon: const Icon(Icons.map),
+                      label: const Text('Abrir GPS'))),
+              const SizedBox(width: 10),
+              Expanded(
+                  child: ElevatedButton.icon(
+                      onPressed: _finalizarEntrega,
+                      icon: const Icon(Icons.check),
+                      label: const Text('Entregue'))),
+            ],
+          ),
         ],
       ),
     );

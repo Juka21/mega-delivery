@@ -685,6 +685,130 @@ class DatabaseService {
     });
   }
 
+  Stream<List<Map<String, dynamic>>> getDeliveryChatStream(String pedidoId) {
+    return _db
+        .collection('pedidos')
+        .doc(pedidoId)
+        .collection('delivery_messages')
+        .orderBy('createdAt')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              final data = _withId(doc);
+              data['timestamp'] =
+                  _dateToIso(data['timestamp'] ?? data['createdAt']);
+              return data;
+            }).toList());
+  }
+
+  Future<void> sendDeliveryChatMessage(
+      String pedidoId, Map<String, dynamic> message) async {
+    await _db
+        .collection('pedidos')
+        .doc(pedidoId)
+        .collection('delivery_messages')
+        .add({
+      ...message,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    await _db.collection('pedidos').doc(pedidoId).set({
+      'lastDeliveryMessage': message['texto'] ?? '',
+      'lastDeliveryMessageAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Stream<List<Map<String, dynamic>>> getSupportTicketsStream(
+      {required bool isAdmin}) {
+    final user = AuthService().currentUser;
+    final stream = isAdmin || user == null
+        ? _db.collection('support_tickets').snapshots()
+        : _db
+            .collection('support_tickets')
+            .where('userId', isEqualTo: user.uid)
+            .snapshots();
+
+    return stream.map((snapshot) {
+      final tickets = snapshot.docs.map((doc) {
+        final data = _withId(doc);
+        data['createdAtText'] = _dateToIso(data['createdAt']);
+        data['updatedAtText'] = _dateToIso(data['updatedAt']);
+        return data;
+      }).toList();
+      tickets.sort((a, b) =>
+          _dateToIso(b['updatedAt']).compareTo(_dateToIso(a['updatedAt'])));
+      return tickets;
+    });
+  }
+
+  Future<String> createSupportTicket({
+    required String assunto,
+    required String mensagem,
+  }) async {
+    final user = AuthService().currentUser;
+    final ref = _db.collection('support_tickets').doc();
+    final ticketData = {
+      'userId': user?.uid ?? 'anonimo',
+      'userName': user?.nome ?? 'Cliente',
+      'userEmail': user?.email ?? '',
+      'assunto': assunto,
+      'status': 'Aberto',
+      'lastMessage': mensagem,
+      'lastSenderRole': user?.role ?? 'cliente',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    await ref.set(ticketData);
+    await ref.collection('messages').add({
+      'texto': mensagem,
+      'senderId': user?.uid ?? 'anonimo',
+      'senderName': user?.nome ?? 'Cliente',
+      'senderRole': user?.role ?? 'cliente',
+      'timestamp': DateTime.now().toIso8601String(),
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    return ref.id;
+  }
+
+  Stream<List<Map<String, dynamic>>> getSupportChatStream(String ticketId) {
+    return _db
+        .collection('support_tickets')
+        .doc(ticketId)
+        .collection('messages')
+        .orderBy('createdAt')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              final data = _withId(doc);
+              data['timestamp'] =
+                  _dateToIso(data['timestamp'] ?? data['createdAt']);
+              return data;
+            }).toList());
+  }
+
+  Future<void> sendSupportChatMessage(
+      String ticketId, Map<String, dynamic> message) async {
+    final ticketRef = _db.collection('support_tickets').doc(ticketId);
+    await ticketRef.collection('messages').add({
+      ...message,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    await ticketRef.set({
+      'lastMessage': message['texto'] ?? '',
+      'lastSenderRole': message['senderRole'] ?? '',
+      'status': 'Aberto',
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> closeSupportTicket(String ticketId) async {
+    await _db.collection('support_tickets').doc(ticketId).set({
+      'status': 'Fechado',
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<String?> uploadImage(File file) async {
     try {
       final fileName =
