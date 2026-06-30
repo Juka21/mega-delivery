@@ -1,6 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 
@@ -89,6 +90,18 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isLoading = true);
     try {
       await _auth.signInWithGoogle();
+      await _saveMessagingToken();
+    } catch (e) {
+      _showSnack(e.toString().replaceAll('Exception: ', ''), Colors.red);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _signInWithApple() async {
+    setState(() => _isLoading = true);
+    try {
+      await _auth.signInWithApple();
       await _saveMessagingToken();
     } catch (e) {
       _showSnack(e.toString().replaceAll('Exception: ', ''), Colors.red);
@@ -387,6 +400,39 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
+  Widget _buildAppleButton() {
+    return FutureBuilder<bool>(
+      future: SignInWithApple.isAvailable(),
+      builder: (context, snapshot) {
+        if (snapshot.data != true) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: OutlinedButton.icon(
+              onPressed: _isLoading ? null : _signInWithApple,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.white,
+                side: BorderSide.none,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                backgroundColor: _ink,
+              ),
+              icon: const FaIcon(FontAwesomeIcons.apple, size: 20),
+              label: const Text(
+                'Continuar com Apple',
+                style: TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildLogo() {
     return Container(
       width: 126,
@@ -504,6 +550,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                             const SizedBox(height: 18),
                             _buildGoogleButton(),
+                            _buildAppleButton(),
                           ],
                         ),
                       ),
