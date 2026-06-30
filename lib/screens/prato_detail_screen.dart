@@ -33,7 +33,7 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
     super.initState();
     _ingredientesRemovidos = [];
     _extrasSelecionados = [];
-    _molhosSelecionados = List<String>.from(widget.prato.molhos);
+    _molhosSelecionados = [];
   }
 
   @override
@@ -374,7 +374,7 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSubHeader(title: 'Molhos', subtitle: 'Incluidos'),
+        _buildSubHeader(title: 'Molhos', subtitle: 'Escolhe'),
         const SizedBox(height: 12),
         Wrap(
           spacing: 9,
