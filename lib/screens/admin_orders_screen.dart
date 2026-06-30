@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -342,7 +344,7 @@ class _CashStatsPanel extends StatefulWidget {
 }
 
 class _CashStatsPanelState extends State<_CashStatsPanel> {
-  String _selectedPeriod = 'Hoje';
+  String _selectedPeriod = 'Dia';
 
   @override
   Widget build(BuildContext context) {
@@ -358,12 +360,11 @@ class _CashStatsPanelState extends State<_CashStatsPanel> {
         }
 
         final closures = snapshot.data ?? [];
-        final now = DateTime.now();
-        final dayStats = _periodStats(closures, 'Hoje', now);
-        final weekStats = _periodStats(closures, 'Semana', now);
-        final monthStats = _periodStats(closures, 'Mês', now);
-        final yearStats = _periodStats(closures, 'Ano', now);
-        final selectedStats = _periodStats(closures, _selectedPeriod, now);
+        final daySeries = _buildTrendSeries(closures, 'Dia');
+        final weekSeries = _buildTrendSeries(closures, 'Semana');
+        final monthSeries = _buildTrendSeries(closures, 'Mês');
+        final yearSeries = _buildTrendSeries(closures, 'Ano');
+        final selectedSeries = _buildTrendSeries(closures, _selectedPeriod);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,33 +383,37 @@ class _CashStatsPanelState extends State<_CashStatsPanel> {
               childAspectRatio: 1.65,
               children: [
                 _StatTile(
-                  label: 'Hoje',
-                  total: dayStats.win,
-                  selected: _selectedPeriod == 'Hoje',
-                  onTap: () => setState(() => _selectedPeriod = 'Hoje'),
+                  label: 'Dia',
+                  total: _seriesMoneyTotal(daySeries),
+                  sales: _seriesSalesTotal(daySeries),
+                  selected: _selectedPeriod == 'Dia',
+                  onTap: () => setState(() => _selectedPeriod = 'Dia'),
                 ),
                 _StatTile(
                   label: 'Semana',
-                  total: weekStats.win,
+                  total: _seriesMoneyTotal(weekSeries),
+                  sales: _seriesSalesTotal(weekSeries),
                   selected: _selectedPeriod == 'Semana',
                   onTap: () => setState(() => _selectedPeriod = 'Semana'),
                 ),
                 _StatTile(
                   label: 'Mês',
-                  total: monthStats.win,
+                  total: _seriesMoneyTotal(monthSeries),
+                  sales: _seriesSalesTotal(monthSeries),
                   selected: _selectedPeriod == 'Mês',
                   onTap: () => setState(() => _selectedPeriod = 'Mês'),
                 ),
                 _StatTile(
                   label: 'Ano',
-                  total: yearStats.win,
+                  total: _seriesMoneyTotal(yearSeries),
+                  sales: _seriesSalesTotal(yearSeries),
                   selected: _selectedPeriod == 'Ano',
                   onTap: () => setState(() => _selectedPeriod = 'Ano'),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            _WinLossChart(period: _selectedPeriod, stats: selectedStats),
+            _TrendChart(period: _selectedPeriod, points: selectedSeries),
             const SizedBox(height: 16),
             Container(
               width: double.infinity,
@@ -478,48 +483,96 @@ class _CashStatsPanelState extends State<_CashStatsPanel> {
     );
   }
 
-  _CashPeriodStats _periodStats(
-    List<Map<String, dynamic>> closures,
-    String period,
-    DateTime now,
-  ) {
-    return closures.fold<_CashPeriodStats>(
-      const _CashPeriodStats(win: 0, loss: 0),
-      (stats, closure) {
-        final date = _closureDate(closure);
-        if (!_matchesPeriod(date, period, now)) return stats;
-        return _CashPeriodStats(
-          win: stats.win + _winTotal(closure),
-          loss: stats.loss + _lossTotal(closure),
-        );
-      },
+  List<_TrendPoint> _buildTrendSeries(
+      List<Map<String, dynamic>> closures, String period) {
+    final now = DateTime.now();
+    final buckets = <_TrendPoint>[];
+
+    if (period == 'Dia') {
+      final today = DateTime(now.year, now.month, now.day);
+      for (var i = 13; i >= 0; i--) {
+        final date = today.subtract(Duration(days: i));
+        buckets.add(_TrendPoint(
+          start: date,
+          label: DateFormat('dd/MM').format(date),
+        ));
+      }
+    } else if (period == 'Semana') {
+      final currentWeek = _weekStart(now);
+      for (var i = 7; i >= 0; i--) {
+        final date = currentWeek.subtract(Duration(days: i * 7));
+        buckets.add(_TrendPoint(
+          start: date,
+          label: DateFormat('dd/MM').format(date),
+        ));
+      }
+    } else if (period == 'Mês') {
+      final currentMonth = DateTime(now.year, now.month);
+      for (var i = 11; i >= 0; i--) {
+        final date = DateTime(currentMonth.year, currentMonth.month - i);
+        buckets.add(_TrendPoint(
+          start: date,
+          label: DateFormat('MMM', 'pt_PT').format(date),
+        ));
+      }
+    } else {
+      final currentYear = DateTime(now.year);
+      for (var i = 4; i >= 0; i--) {
+        final date = DateTime(currentYear.year - i);
+        buckets.add(_TrendPoint(
+          start: date,
+          label: date.year.toString(),
+        ));
+      }
+    }
+
+    for (final closure in closures) {
+      final date = _closureDate(closure);
+      final bucketIndex = buckets.indexWhere(
+        (bucket) => _belongsToBucket(date, bucket.start, period),
+      );
+      if (bucketIndex == -1) continue;
+      final current = buckets[bucketIndex];
+      buckets[bucketIndex] = current.copyWith(
+        money: current.money + _winTotal(closure),
+        sales: current.sales + ((closure['pedidos'] as num?)?.toInt() ?? 0),
+      );
+    }
+
+    return buckets;
+  }
+
+  bool _belongsToBucket(DateTime date, DateTime bucketStart, String period) {
+    if (period == 'Dia') return _isSameDay(date, bucketStart);
+    if (period == 'Semana') return _isSameDay(_weekStart(date), bucketStart);
+    if (period == 'Mês') {
+      return date.year == bucketStart.year && date.month == bucketStart.month;
+    }
+    return date.year == bucketStart.year;
+  }
+
+  DateTime _weekStart(DateTime date) {
+    final currentDay = DateTime(date.year, date.month, date.day);
+    return currentDay.subtract(Duration(days: currentDay.weekday - 1));
+  }
+
+  double _seriesMoneyTotal(List<_TrendPoint> points) {
+    return points.fold<double>(
+      0,
+      (total, point) => total + point.money,
     );
   }
 
-  bool _matchesPeriod(DateTime date, String period, DateTime now) {
-    switch (period) {
-      case 'Hoje':
-        return _isSameDay(date, now);
-      case 'Semana':
-        return _isSameWeek(date, now);
-      case 'Mês':
-        return date.year == now.year && date.month == now.month;
-      case 'Ano':
-        return date.year == now.year;
-      default:
-        return false;
-    }
+  int _seriesSalesTotal(List<_TrendPoint> points) {
+    return points.fold<int>(
+      0,
+      (total, point) => total + point.sales,
+    );
   }
 
   double _winTotal(Map<String, dynamic> closure) {
     return (closure['winTotal'] as num?)?.toDouble() ??
         (closure['total'] as num?)?.toDouble() ??
-        0.0;
-  }
-
-  double _lossTotal(Map<String, dynamic> closure) {
-    return (closure['lossTotal'] as num?)?.toDouble() ??
-        (closure['canceladoTotal'] as num?)?.toDouble() ??
         0.0;
   }
 
@@ -531,26 +584,42 @@ class _CashStatsPanelState extends State<_CashStatsPanel> {
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
+}
 
-  bool _isSameWeek(DateTime date, DateTime now) {
-    final currentDay = DateTime(now.year, now.month, now.day);
-    final weekStart =
-        currentDay.subtract(Duration(days: currentDay.weekday - 1));
-    final weekEnd = weekStart.add(const Duration(days: 7));
-    final target = DateTime(date.year, date.month, date.day);
-    return !target.isBefore(weekStart) && target.isBefore(weekEnd);
+class _TrendPoint {
+  final DateTime start;
+  final String label;
+  final double money;
+  final int sales;
+
+  const _TrendPoint({
+    required this.start,
+    required this.label,
+    this.money = 0,
+    this.sales = 0,
+  });
+
+  _TrendPoint copyWith({double? money, int? sales}) {
+    return _TrendPoint(
+      start: start,
+      label: label,
+      money: money ?? this.money,
+      sales: sales ?? this.sales,
+    );
   }
 }
 
 class _StatTile extends StatelessWidget {
   final String label;
   final double total;
+  final int sales;
   final bool selected;
   final VoidCallback onTap;
 
   const _StatTile({
     required this.label,
     required this.total,
+    required this.sales,
     required this.selected,
     required this.onTap,
   });
@@ -584,8 +653,16 @@ class _StatTile extends StatelessWidget {
               '${total.toStringAsFixed(2)} EUR',
               style: TextStyle(
                 color: selected ? Colors.white : Colors.black,
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '$sales vendas',
+              style: TextStyle(
+                color: selected ? Colors.white70 : Colors.grey[600],
+                fontWeight: FontWeight.bold,
               ),
             ),
           ],
@@ -595,26 +672,16 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-class _CashPeriodStats {
-  final double win;
-  final double loss;
-
-  const _CashPeriodStats({required this.win, required this.loss});
-}
-
-class _WinLossChart extends StatelessWidget {
+class _TrendChart extends StatelessWidget {
   final String period;
-  final _CashPeriodStats stats;
+  final List<_TrendPoint> points;
 
-  const _WinLossChart({required this.period, required this.stats});
+  const _TrendChart({required this.period, required this.points});
 
   @override
   Widget build(BuildContext context) {
-    final maxValue = [
-      stats.win,
-      stats.loss,
-      1.0,
-    ].reduce((a, b) => a > b ? a : b);
+    final totalMoney = points.fold<double>(0, (sum, item) => sum + item.money);
+    final totalSales = points.fold<int>(0, (sum, item) => sum + item.sales);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -626,27 +693,44 @@ class _WinLossChart extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Gráfico $period',
+            'Comparação por $period',
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 4),
           Text(
-            'Win = pedidos concluídos. Loss = pedidos cancelados.',
+            'Linha laranja: dinheiro gerado. Linha azul: número de vendas.',
             style: TextStyle(color: Colors.grey[600], fontSize: 12),
           ),
-          const SizedBox(height: 18),
-          _ChartBar(
-            label: 'Win',
-            value: stats.win,
-            maxValue: maxValue,
-            color: Colors.green,
+          const SizedBox(height: 14),
+          const Row(
+            children: [
+              _LegendDot(color: Colors.deepOrange, label: 'Dinheiro'),
+              SizedBox(width: 14),
+              _LegendDot(color: Colors.blue, label: 'Vendas'),
+            ],
           ),
           const SizedBox(height: 12),
-          _ChartBar(
-            label: 'Loss',
-            value: stats.loss,
-            maxValue: maxValue,
-            color: Colors.red,
+          SizedBox(
+            height: 190,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: _TrendChartPainter(points: points),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Total: ${totalMoney.toStringAsFixed(2)} EUR',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              Text(
+                '$totalSales vendas',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ],
           ),
         ],
       ),
@@ -654,56 +738,140 @@ class _WinLossChart extends StatelessWidget {
   }
 }
 
-class _ChartBar extends StatelessWidget {
-  final String label;
-  final double value;
-  final double maxValue;
+class _LegendDot extends StatelessWidget {
   final Color color;
+  final String label;
 
-  const _ChartBar({
-    required this.label,
-    required this.value,
-    required this.maxValue,
-    required this.color,
-  });
+  const _LegendDot({required this.color, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    final fraction = maxValue <= 0 ? 0.0 : (value / maxValue).clamp(0.0, 1.0);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          children: [
-            SizedBox(
-              width: 42,
-              child: Text(
-                label,
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                '${value.toStringAsFixed(2)} EUR',
-                textAlign: TextAlign.right,
-                style: TextStyle(color: Colors.grey[700]),
-              ),
-            ),
-          ],
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            minHeight: 14,
-            value: fraction,
-            backgroundColor: color.withValues(alpha: 0.12),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-          ),
-        ),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
       ],
     );
+  }
+}
+
+class _TrendChartPainter extends CustomPainter {
+  final List<_TrendPoint> points;
+
+  _TrendChartPainter({required this.points});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final chartRect = Rect.fromLTWH(0, 8, size.width, size.height - 44);
+    final axisPaint = Paint()
+      ..color = Colors.grey.withValues(alpha: 0.18)
+      ..strokeWidth = 1;
+
+    for (var i = 0; i < 4; i++) {
+      final y = chartRect.top + (chartRect.height / 3) * i;
+      canvas.drawLine(
+          Offset(chartRect.left, y), Offset(chartRect.right, y), axisPaint);
+    }
+
+    final moneyMax = _maxMoney();
+    final salesMax = _maxSales();
+    final moneyOffsets = _offsetsForMoney(chartRect, moneyMax);
+    final salesOffsets = _offsetsForSales(chartRect, salesMax);
+
+    _drawLine(canvas, moneyOffsets, Colors.deepOrange);
+    _drawLine(canvas, salesOffsets, Colors.blue);
+    _drawLabels(canvas, chartRect);
+  }
+
+  double _maxMoney() {
+    final maxValue = points.fold<double>(
+      0,
+      (max, point) => point.money > max ? point.money : max,
+    );
+    return maxValue <= 0 ? 1 : maxValue;
+  }
+
+  int _maxSales() {
+    final maxValue = points.fold<int>(
+      0,
+      (max, point) => point.sales > max ? point.sales : max,
+    );
+    return maxValue <= 0 ? 1 : maxValue;
+  }
+
+  List<Offset> _offsetsForMoney(Rect rect, double maxValue) {
+    return List.generate(points.length, (index) {
+      final point = points[index];
+      final x = _xForIndex(rect, index);
+      final y = rect.bottom - (point.money / maxValue) * rect.height;
+      return Offset(x, y);
+    });
+  }
+
+  List<Offset> _offsetsForSales(Rect rect, int maxValue) {
+    return List.generate(points.length, (index) {
+      final point = points[index];
+      final x = _xForIndex(rect, index);
+      final y = rect.bottom - (point.sales / maxValue) * rect.height;
+      return Offset(x, y);
+    });
+  }
+
+  double _xForIndex(Rect rect, int index) {
+    if (points.length <= 1) return rect.left;
+    return rect.left + (rect.width / (points.length - 1)) * index;
+  }
+
+  void _drawLine(Canvas canvas, List<Offset> offsets, Color color) {
+    if (offsets.isEmpty) return;
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final dotPaint = Paint()..color = color;
+    final path = Path()..moveTo(offsets.first.dx, offsets.first.dy);
+    for (final offset in offsets.skip(1)) {
+      path.lineTo(offset.dx, offset.dy);
+    }
+    canvas.drawPath(path, paint);
+    for (final offset in offsets) {
+      canvas.drawCircle(offset, 3.5, dotPaint);
+    }
+  }
+
+  void _drawLabels(Canvas canvas, Rect rect) {
+    if (points.isEmpty) return;
+    final indexes = <int>{0, points.length ~/ 2, points.length - 1};
+    for (final index in indexes) {
+      final point = points[index];
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: point.label,
+          style: const TextStyle(
+            color: Colors.black54,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: ui.TextDirection.ltr,
+      )..layout(maxWidth: 70);
+      final x = (_xForIndex(rect, index) - textPainter.width / 2)
+          .clamp(0.0, rect.width - textPainter.width);
+      textPainter.paint(canvas, Offset(x, rect.bottom + 12));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrendChartPainter oldDelegate) {
+    return oldDelegate.points != points;
   }
 }
 
