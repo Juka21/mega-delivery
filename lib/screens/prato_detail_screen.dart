@@ -238,29 +238,43 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
         children: [
           Row(
             children: [
+              Flexible(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: _brand.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    prato.categoria.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _brand,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
-                  color: _brand.withOpacity(0.12),
+                  color: _brand,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  prato.categoria.toUpperCase(),
+                  '${prato.preco.toStringAsFixed(2)} EUR',
+                  maxLines: 1,
                   style: const TextStyle(
-                    color: _brand,
-                    fontSize: 11,
+                    color: Colors.white,
+                    fontSize: 15,
                     fontWeight: FontWeight.w900,
+                    height: 1,
                   ),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${prato.preco.toStringAsFixed(2)} EUR',
-                style: const TextStyle(
-                  color: _brand,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
                 ),
               ),
             ],
