@@ -68,5 +68,9 @@ service cloud.firestore {
         allow update, delete: if isAdmin();
       }
     }
+
+    match /fechos_caixa/{fechoId} {
+      allow read, write: if isAdmin();
+    }
   }
 }

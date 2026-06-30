@@ -332,38 +332,38 @@ class CompletedOrdersScreen extends StatelessWidget {
   }
 }
 
-class _CashStatsPanel extends StatelessWidget {
+class _CashStatsPanel extends StatefulWidget {
   final DatabaseService db;
 
   const _CashStatsPanel({required this.db});
 
   @override
+  State<_CashStatsPanel> createState() => _CashStatsPanelState();
+}
+
+class _CashStatsPanelState extends State<_CashStatsPanel> {
+  String _selectedPeriod = 'Hoje';
+
+  @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: db.cashClosuresStream,
+      stream: widget.db.cashClosuresStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
+        if (snapshot.hasError) {
+          return _StatsError(message: snapshot.error.toString());
+        }
+
         final closures = snapshot.data ?? [];
         final now = DateTime.now();
-        final dayTotal = _sumWhere(
-          closures,
-          (date) => _isSameDay(date, now),
-        );
-        final weekTotal = _sumWhere(
-          closures,
-          (date) => _isSameWeek(date, now),
-        );
-        final monthTotal = _sumWhere(
-          closures,
-          (date) => date.year == now.year && date.month == now.month,
-        );
-        final yearTotal = _sumWhere(
-          closures,
-          (date) => date.year == now.year,
-        );
+        final dayStats = _periodStats(closures, 'Hoje', now);
+        final weekStats = _periodStats(closures, 'Semana', now);
+        final monthStats = _periodStats(closures, 'Mês', now);
+        final yearStats = _periodStats(closures, 'Ano', now);
+        final selectedStats = _periodStats(closures, _selectedPeriod, now);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,12 +381,34 @@ class _CashStatsPanel extends StatelessWidget {
               mainAxisSpacing: 10,
               childAspectRatio: 1.65,
               children: [
-                _StatTile(label: 'Hoje', total: dayTotal),
-                _StatTile(label: 'Semana', total: weekTotal),
-                _StatTile(label: 'Mês', total: monthTotal),
-                _StatTile(label: 'Ano', total: yearTotal),
+                _StatTile(
+                  label: 'Hoje',
+                  total: dayStats.win,
+                  selected: _selectedPeriod == 'Hoje',
+                  onTap: () => setState(() => _selectedPeriod = 'Hoje'),
+                ),
+                _StatTile(
+                  label: 'Semana',
+                  total: weekStats.win,
+                  selected: _selectedPeriod == 'Semana',
+                  onTap: () => setState(() => _selectedPeriod = 'Semana'),
+                ),
+                _StatTile(
+                  label: 'Mês',
+                  total: monthStats.win,
+                  selected: _selectedPeriod == 'Mês',
+                  onTap: () => setState(() => _selectedPeriod = 'Mês'),
+                ),
+                _StatTile(
+                  label: 'Ano',
+                  total: yearStats.win,
+                  selected: _selectedPeriod == 'Ano',
+                  onTap: () => setState(() => _selectedPeriod = 'Ano'),
+                ),
               ],
             ),
+            const SizedBox(height: 16),
+            _WinLossChart(period: _selectedPeriod, stats: selectedStats),
             const SizedBox(height: 16),
             Container(
               width: double.infinity,
@@ -456,15 +478,49 @@ class _CashStatsPanel extends StatelessWidget {
     );
   }
 
-  double _sumWhere(
+  _CashPeriodStats _periodStats(
     List<Map<String, dynamic>> closures,
-    bool Function(DateTime date) test,
+    String period,
+    DateTime now,
   ) {
-    return closures.fold<double>(0, (sum, closure) {
-      final date = _closureDate(closure);
-      if (!test(date)) return sum;
-      return sum + ((closure['total'] as num?)?.toDouble() ?? 0.0);
-    });
+    return closures.fold<_CashPeriodStats>(
+      const _CashPeriodStats(win: 0, loss: 0),
+      (stats, closure) {
+        final date = _closureDate(closure);
+        if (!_matchesPeriod(date, period, now)) return stats;
+        return _CashPeriodStats(
+          win: stats.win + _winTotal(closure),
+          loss: stats.loss + _lossTotal(closure),
+        );
+      },
+    );
+  }
+
+  bool _matchesPeriod(DateTime date, String period, DateTime now) {
+    switch (period) {
+      case 'Hoje':
+        return _isSameDay(date, now);
+      case 'Semana':
+        return _isSameWeek(date, now);
+      case 'Mês':
+        return date.year == now.year && date.month == now.month;
+      case 'Ano':
+        return date.year == now.year;
+      default:
+        return false;
+    }
+  }
+
+  double _winTotal(Map<String, dynamic> closure) {
+    return (closure['winTotal'] as num?)?.toDouble() ??
+        (closure['total'] as num?)?.toDouble() ??
+        0.0;
+  }
+
+  double _lossTotal(Map<String, dynamic> closure) {
+    return (closure['lossTotal'] as num?)?.toDouble() ??
+        (closure['canceladoTotal'] as num?)?.toDouble() ??
+        0.0;
   }
 
   DateTime _closureDate(Map<String, dynamic> closure) {
@@ -489,28 +545,188 @@ class _CashStatsPanel extends StatelessWidget {
 class _StatTile extends StatelessWidget {
   final String label;
   final double total;
+  final bool selected;
+  final VoidCallback onTap;
 
-  const _StatTile({required this.label, required this.total});
+  const _StatTile({
+    required this.label,
+    required this.total,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected ? Colors.black : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? Colors.black : Colors.transparent,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.white70 : Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${total.toStringAsFixed(2)} EUR',
+              style: TextStyle(
+                color: selected ? Colors.white : Colors.black,
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CashPeriodStats {
+  final double win;
+  final double loss;
+
+  const _CashPeriodStats({required this.win, required this.loss});
+}
+
+class _WinLossChart extends StatelessWidget {
+  final String period;
+  final _CashPeriodStats stats;
+
+  const _WinLossChart({required this.period, required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    final maxValue = [
+      stats.win,
+      stats.loss,
+      1.0,
+    ].reduce((a, b) => a > b ? a : b);
+
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey[600])),
-          const SizedBox(height: 6),
           Text(
-            '${total.toStringAsFixed(2)} EUR',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            'Gráfico $period',
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Win = pedidos concluídos. Loss = pedidos cancelados.',
+            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          ),
+          const SizedBox(height: 18),
+          _ChartBar(
+            label: 'Win',
+            value: stats.win,
+            maxValue: maxValue,
+            color: Colors.green,
+          ),
+          const SizedBox(height: 12),
+          _ChartBar(
+            label: 'Loss',
+            value: stats.loss,
+            maxValue: maxValue,
+            color: Colors.red,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ChartBar extends StatelessWidget {
+  final String label;
+  final double value;
+  final double maxValue;
+  final Color color;
+
+  const _ChartBar({
+    required this.label,
+    required this.value,
+    required this.maxValue,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction = maxValue <= 0 ? 0.0 : (value / maxValue).clamp(0.0, 1.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            SizedBox(
+              width: 42,
+              child: Text(
+                label,
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+            Expanded(
+              child: Text(
+                '${value.toStringAsFixed(2)} EUR',
+                textAlign: TextAlign.right,
+                style: TextStyle(color: Colors.grey[700]),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            minHeight: 14,
+            value: fraction,
+            backgroundColor: color.withValues(alpha: 0.12),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatsError extends StatelessWidget {
+  final String message;
+
+  const _StatsError({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(
+        'Não foi possível carregar estatísticas: $message',
+        style: const TextStyle(
+          color: Colors.orange,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

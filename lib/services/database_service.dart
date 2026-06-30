@@ -358,61 +358,81 @@ class DatabaseService {
   }
 
   Future<Map<String, dynamic>> closeCashDay(DateTime day) async {
-    final allOrders = await getAllOrders();
-    final dayOrders = allOrders
-        .where(_isCurrentUserOrder)
-        .where((order) => _isSameLocalDay(_localOrderDate(order), day))
-        .toList();
+    try {
+      final allOrders = await getAllOrders();
+      final dayOrders = allOrders
+          .where(_isCurrentUserOrder)
+          .where((order) => _isSameLocalDay(_localOrderDate(order), day))
+          .toList();
 
-    final activeOrders = dayOrders.where((order) {
-      final status = order['status']?.toString() ?? '';
-      return status != 'Concluído' && status != 'Cancelado';
-    }).toList();
+      final activeOrders = dayOrders.where((order) {
+        final status = order['status']?.toString() ?? '';
+        return status != 'Concluído' && status != 'Cancelado';
+      }).toList();
 
-    if (activeOrders.isNotEmpty) {
+      if (activeOrders.isNotEmpty) {
+        return {
+          'success': false,
+          'message':
+              'Ainda tens ${activeOrders.length} pedido(s) por concluir antes de fechar o dia.',
+        };
+      }
+
+      final completedOrders = dayOrders
+          .where((order) => order['status']?.toString() == 'Concluído')
+          .toList();
+      final cancelledOrders = dayOrders
+          .where((order) => order['status']?.toString() == 'Cancelado')
+          .toList();
+
+      if (completedOrders.isEmpty) {
+        return {
+          'success': false,
+          'message': 'Não existem pedidos concluídos para fechar neste dia.',
+        };
+      }
+
+      double orderTotal(Map<String, dynamic> order) {
+        return (order['total'] as num?)?.toDouble() ?? 0;
+      }
+
+      final winTotal = completedOrders.fold<double>(
+        0,
+        (totalSoFar, order) => totalSoFar + orderTotal(order),
+      );
+      final lossTotal = cancelledOrders.fold<double>(
+        0,
+        (totalSoFar, order) => totalSoFar + orderTotal(order),
+      );
+      final id = _dayId(day);
+      final dataFecho = DateTime(day.year, day.month, day.day);
+
+      await _db.collection('fechos_caixa').doc(id).set({
+        'id': id,
+        'data': dataFecho.toIso8601String(),
+        'total': winTotal,
+        'winTotal': winTotal,
+        'lossTotal': lossTotal,
+        'pedidos': completedOrders.length,
+        'pedidosCancelados': cancelledOrders.length,
+        'pedidoIds': completedOrders
+            .map((order) => order['id']?.toString() ?? order['_id']?.toString())
+            .where((id) => id != null && id.isNotEmpty)
+            .toList(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      return {
+        'success': true,
+        'message': 'Dia fechado com ${winTotal.toStringAsFixed(2)} EUR.',
+      };
+    } catch (e) {
       return {
         'success': false,
-        'message':
-            'Ainda tens ${activeOrders.length} pedido(s) por concluir antes de fechar o dia.',
+        'message': 'Não foi possível fechar o dia: $e',
       };
     }
-
-    final completedOrders = dayOrders
-        .where((order) => order['status']?.toString() == 'Concluído')
-        .toList();
-
-    if (completedOrders.isEmpty) {
-      return {
-        'success': false,
-        'message': 'Não existem pedidos concluídos para fechar neste dia.',
-      };
-    }
-
-    final total = completedOrders.fold<double>(
-      0,
-      (totalSoFar, order) =>
-          totalSoFar + ((order['total'] as num?)?.toDouble() ?? 0),
-    );
-    final id = _dayId(day);
-    final dataFecho = DateTime(day.year, day.month, day.day);
-
-    await _db.collection('fechos_caixa').doc(id).set({
-      'id': id,
-      'data': dataFecho.toIso8601String(),
-      'total': total,
-      'pedidos': completedOrders.length,
-      'pedidoIds': completedOrders
-          .map((order) => order['id']?.toString() ?? order['_id']?.toString())
-          .where((id) => id != null && id.isNotEmpty)
-          .toList(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    return {
-      'success': true,
-      'message': 'Dia fechado com ${total.toStringAsFixed(2)} EUR.',
-    };
   }
 
   Future<List<Map<String, dynamic>>> getOrdersForUser(String userId) async {
