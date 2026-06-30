@@ -105,14 +105,12 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
               _buildHero(prato, screenWidth),
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 130),
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 130),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Transform.translate(
-                        offset: const Offset(0, -28),
-                        child: _buildTitlePanel(prato),
-                      ),
+                      _buildTitlePanel(prato),
+                      const SizedBox(height: 16),
                       if (_hasChoices(prato)) ...[
                         _SectionShell(
                           title: 'Personaliza',
@@ -227,7 +225,7 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
         borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 28,
             offset: const Offset(0, 14),
           ),
@@ -243,7 +241,7 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
-                    color: _brand.withOpacity(0.12),
+                    color: _brand.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
@@ -400,7 +398,8 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: selected ? _brand.withOpacity(0.10) : const Color(0xFFF8FAFC),
+        color:
+            selected ? _brand.withValues(alpha: 0.10) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
@@ -532,11 +531,11 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
         child: Container(
           padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.94),
+            color: Colors.white.withValues(alpha: 0.94),
             border: const Border(top: BorderSide(color: Color(0xFFE7EAF0))),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.08),
+                color: Colors.black.withValues(alpha: 0.08),
                 blurRadius: 24,
                 offset: const Offset(0, -10),
               ),
@@ -558,7 +557,7 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: _brand.withOpacity(0.28),
+                            color: _brand.withValues(alpha: 0.28),
                             blurRadius: 16,
                             offset: const Offset(0, 8),
                           ),
@@ -585,7 +584,7 @@ class _PratoDetailScreenState extends State<PratoDetailScreen> {
                               vertical: 5,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.16),
+                              color: Colors.black.withValues(alpha: 0.16),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
@@ -683,7 +682,7 @@ class _SectionShell extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE7EAF0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.035),
+            color: Colors.black.withValues(alpha: 0.035),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -698,7 +697,7 @@ class _SectionShell extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: _PratoDetailScreenState._brand.withOpacity(0.12),
+                  color: _PratoDetailScreenState._brand.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(
@@ -752,7 +751,7 @@ class _ChoiceChipButton extends StatelessWidget {
     final color = selected ? selectedColor : unselectedColor;
 
     return Material(
-      color: color.withOpacity(selected ? 0.11 : 0.08),
+      color: color.withValues(alpha: selected ? 0.11 : 0.08),
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         borderRadius: BorderRadius.circular(999),
@@ -762,7 +761,7 @@ class _ChoiceChipButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: color.withOpacity(0.28)),
+            border: Border.all(color: color.withValues(alpha: 0.28)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -805,7 +804,7 @@ class _GlassIconButton extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Material(
-          color: Colors.white.withOpacity(0.72),
+          color: Colors.white.withValues(alpha: 0.72),
           child: InkWell(
             onTap: onTap,
             child: Icon(icon, color: _PratoDetailScreenState._ink, size: 19),
