@@ -30,17 +30,22 @@ const List<String> defaultMenuIngredients = [
   'Couve Roxa',
   'Atum',
   'Kebab',
+  'Pão',
+  'Pão Mega',
+  'Hambúrguer',
+  'Hambúrguer Mega',
 ];
 
 const List<String> defaultMenuSauces = [
   'Ketchup',
   'Maionese',
   'Mostarda',
-  'Molho Especial',
+  'Molho de Hambúrguer',
   'Molho Francesinha',
   'Molho Pita',
   'Molho Samurai',
   'Sem Molho',
+  'Molho Especial',
 ];
 
 const List<Map<String, dynamic>> defaultMenuExtras = [
