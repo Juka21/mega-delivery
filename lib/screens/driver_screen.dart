@@ -262,6 +262,9 @@ class _DriverScreenState extends State<DriverScreen> {
           title: 'Chat com o Cliente',
           subtitle:
               'Pedido #${pedidoId.length > 5 ? pedidoId.substring(pedidoId.length - 5) : pedidoId}',
+          senderId: _driverId,
+          senderName: 'Estafeta',
+          senderRole: 'estafeta',
         ),
       ),
     );

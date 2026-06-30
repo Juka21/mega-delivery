@@ -746,15 +746,18 @@ class DatabaseService {
     required String mensagem,
   }) async {
     final user = AuthService().currentUser;
+    if (user == null) {
+      throw Exception('Inicia sessão novamente para abrir um ticket.');
+    }
     final ref = _db.collection('support_tickets').doc();
     final ticketData = {
-      'userId': user?.uid ?? 'anonimo',
-      'userName': user?.nome ?? 'Cliente',
-      'userEmail': user?.email ?? '',
+      'userId': user.uid,
+      'userName': user.nome,
+      'userEmail': user.email,
       'assunto': assunto,
       'status': 'Aberto',
       'lastMessage': mensagem,
-      'lastSenderRole': user?.role ?? 'cliente',
+      'lastSenderRole': user.role,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -762,9 +765,9 @@ class DatabaseService {
     await ref.set(ticketData);
     await ref.collection('messages').add({
       'texto': mensagem,
-      'senderId': user?.uid ?? 'anonimo',
-      'senderName': user?.nome ?? 'Cliente',
-      'senderRole': user?.role ?? 'cliente',
+      'senderId': user.uid,
+      'senderName': user.nome,
+      'senderRole': user.role,
       'timestamp': DateTime.now().toIso8601String(),
       'createdAt': FieldValue.serverTimestamp(),
     });

@@ -22,6 +22,7 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
   Future<void> _openNewTicketSheet() async {
     final assuntoController = TextEditingController();
     final mensagemController = TextEditingController();
+    var isSending = false;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -32,85 +33,129 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(ctx).viewInsets.bottom,
           ),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Novo ticket',
-                    style: TextStyle(
-                      color: _ink,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: assuntoController,
-                    decoration: _inputDecoration('Assunto'),
-                    textCapitalization: TextCapitalization.sentences,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: mensagemController,
-                    minLines: 4,
-                    maxLines: 6,
-                    decoration: _inputDecoration('Escreve a tua pergunta'),
-                    textCapitalization: TextCapitalization.sentences,
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _brand,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+          child: StatefulBuilder(
+            builder: (ctx, setSheetState) {
+              return Container(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Novo ticket',
+                        style: TextStyle(
+                          color: _ink,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                      onPressed: () async {
-                        final assunto = assuntoController.text.trim();
-                        final mensagem = mensagemController.text.trim();
-                        if (assunto.isEmpty || mensagem.isEmpty) return;
-
-                        final ticketId = await _db.createSupportTicket(
-                          assunto: assunto,
-                          mensagem: mensagem,
-                        );
-                        if (!ctx.mounted) return;
-                        Navigator.pop(ctx);
-                        if (!mounted) return;
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ChatScreen.support(
-                              ticketId: ticketId,
-                              title: assunto,
-                              subtitle: 'Suporte Mega Delivery',
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: assuntoController,
+                        enabled: !isSending,
+                        decoration: _inputDecoration('Assunto'),
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: mensagemController,
+                        enabled: !isSending,
+                        minLines: 4,
+                        maxLines: 6,
+                        decoration: _inputDecoration('Escreve a tua pergunta'),
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _brand,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
                           ),
-                        );
-                      },
-                      icon: const Icon(Icons.send_rounded),
-                      label: const Text(
-                        'Enviar pedido de ajuda',
-                        style: TextStyle(fontWeight: FontWeight.w900),
+                          onPressed: isSending
+                              ? null
+                              : () async {
+                                  final assunto = assuntoController.text.trim();
+                                  final mensagem =
+                                      mensagemController.text.trim();
+                                  if (assunto.isEmpty || mensagem.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            'Preenche o assunto e a mensagem.'),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  setSheetState(() => isSending = true);
+                                  try {
+                                    final ticketId =
+                                        await _db.createSupportTicket(
+                                      assunto: assunto,
+                                      mensagem: mensagem,
+                                    );
+                                    if (!ctx.mounted) return;
+                                    Navigator.pop(ctx);
+                                    if (!mounted) return;
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => ChatScreen.support(
+                                          ticketId: ticketId,
+                                          title: assunto,
+                                          subtitle: 'Suporte Mega Delivery',
+                                        ),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    if (ctx.mounted) {
+                                      setSheetState(() => isSending = false);
+                                    }
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'Não foi possível abrir o ticket: $e'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                },
+                          icon: isSending
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.send_rounded),
+                          label: Text(
+                            isSending
+                                ? 'A enviar...'
+                                : 'Enviar pedido de ajuda',
+                            style: const TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
         );
       },
@@ -118,6 +163,36 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
 
     assuntoController.dispose();
     mensagemController.dispose();
+  }
+
+  Widget _buildErrorState(Object? error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 58, color: Colors.red[300]),
+            const SizedBox(height: 12),
+            const Text(
+              'Não foi possível carregar o suporte',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _ink,
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              error?.toString() ?? 'Erro desconhecido.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   InputDecoration _inputDecoration(String hint) {
@@ -174,6 +249,10 @@ class _SupportTicketsScreenState extends State<SupportTicketsScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
                 child: CircularProgressIndicator(color: _brand));
+          }
+
+          if (snapshot.hasError) {
+            return _buildErrorState(snapshot.error);
           }
 
           final tickets = snapshot.data ?? [];

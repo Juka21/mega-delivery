@@ -9,6 +9,9 @@ class ChatScreen extends StatefulWidget {
   final ChatMode mode;
   final String title;
   final String subtitle;
+  final String? senderIdOverride;
+  final String? senderNameOverride;
+  final String? senderRoleOverride;
 
   const ChatScreen({
     super.key,
@@ -16,6 +19,9 @@ class ChatScreen extends StatefulWidget {
     required this.mode,
     required this.title,
     this.subtitle = '',
+    this.senderIdOverride,
+    this.senderNameOverride,
+    this.senderRoleOverride,
   });
 
   const ChatScreen.delivery({
@@ -23,10 +29,16 @@ class ChatScreen extends StatefulWidget {
     required String pedidoId,
     String title = 'Chat da Entrega',
     String subtitle = '',
+    String? senderId,
+    String? senderName,
+    String? senderRole,
   })  : chatId = pedidoId,
         mode = ChatMode.delivery,
         title = title,
-        subtitle = subtitle;
+        subtitle = subtitle,
+        senderIdOverride = senderId,
+        senderNameOverride = senderName,
+        senderRoleOverride = senderRole;
 
   const ChatScreen.support({
     super.key,
@@ -36,7 +48,10 @@ class ChatScreen extends StatefulWidget {
   })  : chatId = ticketId,
         mode = ChatMode.support,
         title = title,
-        subtitle = subtitle;
+        subtitle = subtitle,
+        senderIdOverride = null,
+        senderNameOverride = null,
+        senderRoleOverride = null;
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -51,7 +66,12 @@ class _ChatScreenState extends State<ChatScreen> {
   final DatabaseService _db = DatabaseService();
 
   AppUser? get currentUser => AuthService().currentUser;
-  String get currentUserId => currentUser?.uid ?? 'anon';
+  String get currentUserId =>
+      widget.senderIdOverride ?? currentUser?.uid ?? 'anon';
+  String get currentSenderName =>
+      widget.senderNameOverride ?? currentUser?.nome ?? 'Utilizador';
+  String get currentSenderRole =>
+      widget.senderRoleOverride ?? currentUser?.role ?? 'cliente';
 
   @override
   void dispose() {
@@ -71,12 +91,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final texto = _msgController.text.trim();
     if (texto.isEmpty) return;
 
-    final user = currentUser;
     final message = {
       'texto': texto,
       'senderId': currentUserId,
-      'senderName': user?.nome ?? 'Utilizador',
-      'senderRole': user?.role ?? 'cliente',
+      'senderName': currentSenderName,
+      'senderRole': currentSenderRole,
       'timestamp': DateTime.now().toIso8601String(),
     };
 
