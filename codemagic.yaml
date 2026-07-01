@@ -4,14 +4,11 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
-      app_store_connect: app_store_connect
+      app_store_connect: Codemagic
     environment:
       flutter: stable
       xcode: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: pt.megacachorro.megadelivery
       vars:
         BUNDLE_ID: pt.megacachorro.megadelivery
     scripts:
