@@ -1,0 +1,33 @@
+workflows:
+  ios-testflight:
+    name: iOS TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: app_store_connect
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: pt.megacachorro.megadelivery
+      vars:
+        BUNDLE_ID: pt.megacachorro.megadelivery
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+      - name: Set up iOS code signing
+        script: xcode-project use-profiles
+      - name: Run tests
+        script: flutter test
+      - name: Build iOS IPA
+        script: flutter build ipa --release --export-options-plist=$HOME/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
