@@ -18,7 +18,11 @@ workflows:
       - name: Get Flutter packages
         script: flutter pub get
       - name: Set up iOS code signing
-        script: xcode-project use-profiles
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Run tests
         script: flutter test
       - name: Build iOS IPA
