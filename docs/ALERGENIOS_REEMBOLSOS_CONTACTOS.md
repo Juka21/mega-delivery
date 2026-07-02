@@ -1,8 +1,8 @@
-# Informacao Legal, Alergenios e Contactos
+# Informação Legal, Alergénios e Contactos
 
 Ultima atualizacao: 2 de julho de 2026
 
-Este documento complementa a Politica de Privacidade e os Termos e Condicoes da aplicacao Mega Cachorro / Mega Delivery.
+Este documento complementa a Política de Privacidade e os Termos e Condições da aplicação Mega Cachorro / Mega Delivery.
 
 Antes de publicar, preenche os dados oficiais da loja e valida a informacao alimentar com a equipa responsavel.
 
@@ -24,7 +24,7 @@ Email para privacidade/dados pessoais: [EMAIL DE PRIVACIDADE]
 
 Horario de atendimento: [HORARIO]
 
-## 2. Alergenios e restricoes alimentares
+## 2. Alergénios e restrições alimentares
 
 Os produtos podem conter ou entrar em contacto com alergenios, incluindo, sem limitar:
 

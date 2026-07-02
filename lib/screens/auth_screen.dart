@@ -4,6 +4,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
+import 'legal_document_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -29,6 +30,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _acceptedLegal = false;
 
   @override
   void dispose() {
@@ -42,11 +44,22 @@ class _AuthScreenState extends State<AuthScreen> {
 
   void _switchMode(bool login) {
     if (_isLoading || _isLogin == login) return;
-    setState(() => _isLogin = login);
+    setState(() {
+      _isLogin = login;
+      if (login) _acceptedLegal = false;
+    });
   }
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_isLogin && !_acceptedLegal) {
+      _showSnack(
+        'Tens de aceitar a politica de privacidade e os termos.',
+        Colors.red,
+      );
+      return;
+    }
+
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
@@ -62,6 +75,7 @@ class _AuthScreenState extends State<AuthScreen> {
           password: _passwordController.text.trim(),
           nome: _nomeController.text.trim(),
           telefone: _telefoneController.text.trim(),
+          acceptedLegal: true,
         );
       }
 
@@ -346,6 +360,106 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
+  void _openLegalDocument(String title, String assetPath) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LegalDocumentScreen(
+          title: title,
+          assetPath: assetPath,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegalConsent() {
+    if (_isLogin) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _orange.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Checkbox(
+            value: _acceptedLegal,
+            activeColor: _orange,
+            onChanged: (value) {
+              setState(() => _acceptedLegal = value ?? false);
+            },
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Text(
+                    'Li e aceito a ',
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => _openLegalDocument(
+                      'Política de Privacidade',
+                      LegalDocumentScreen.privacyAsset,
+                    ),
+                    child: const Text(
+                      'Política de Privacidade',
+                      style: TextStyle(
+                        color: _orange,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  const Text(
+                    ' e os ',
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => _openLegalDocument(
+                      'Termos e Condições',
+                      LegalDocumentScreen.termsAsset,
+                    ),
+                    child: const Text(
+                      'Termos e Condições',
+                      style: TextStyle(
+                        color: _orange,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  const Text(
+                    '.',
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSubmitButton() {
     return SizedBox(
       width: double.infinity,
@@ -522,6 +636,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             _buildModeSwitch(),
                             const SizedBox(height: 18),
                             _buildFormFields(),
+                            _buildLegalConsent(),
                             if (_isLogin)
                               Align(
                                 alignment: Alignment.centerRight,

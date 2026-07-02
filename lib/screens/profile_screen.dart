@@ -131,9 +131,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         }),
                         _buildDivider(),
                         _buildMenuItem(Icons.info_outline_rounded, Colors.grey,
-                            "AlergÃ©nios, Reembolsos e Contactos", null, () {
+                            "Alergénios, Reembolsos e Contactos", null, () {
                           _openLegalDocument(
-                            'Alergenios, Reembolsos e Contactos',
+                            'Alergénios, Reembolsos e Contactos',
                             'docs/ALERGENIOS_REEMBOLSOS_CONTACTOS.md',
                           );
                         }),
