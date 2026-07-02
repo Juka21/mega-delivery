@@ -48,7 +48,7 @@ Os produtos podem conter ou entrar em contacto com alergenios, incluindo, sem li
 - Aipo.
 - Tremoço.
 
-Mesmo quando um ingrediente e removido no pedido, pode existir risco de contacto cruzado na preparacao, confeccao, armazenamento ou entrega.
+Mesmo quando um ingrediente é removido no pedido, pode existir risco de contacto cruzado na preparacao, confeccao, armazenamento ou entrega.
 
 Clientes com alergias, intolerancias ou restricoes alimentares devem contactar a loja antes de encomendar.
 
