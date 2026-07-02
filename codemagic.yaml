@@ -23,7 +23,9 @@ workflows:
       - name: Run tests
         script: flutter test
       - name: Build iOS IPA
-        script: flutter build ipa --release --export-options-plist=$HOME/export_options.plist
+        script: |
+          flutter build ios --release --no-codesign
+          xcode-project build-ipa --workspace ios/Runner.xcworkspace --scheme Runner
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
