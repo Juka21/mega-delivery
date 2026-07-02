@@ -3,6 +3,7 @@ import 'admin_orders_screen.dart';
 import 'admin_menu_screen.dart';
 import 'admin_news_screen.dart';
 import 'admin_drivers_screen.dart';
+import 'admin_store_settings_screen.dart';
 import 'printer_screen.dart';
 import 'support_tickets_screen.dart';
 
@@ -69,6 +70,15 @@ class AdminDashboardScreen extends StatelessWidget {
                   MaterialPageRoute(
                       builder: (_) =>
                           const SupportTicketsScreen(isAdmin: true)))),
+          _buildDashboardCard(context,
+              icon: Icons.storefront_rounded,
+              color: Colors.redAccent,
+              title: "Loja",
+              subtitle: "Abrir & Fechar",
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdminStoreSettingsScreen()))),
           _buildDashboardCard(context,
               icon: Icons.print_rounded,
               color: Colors.teal,

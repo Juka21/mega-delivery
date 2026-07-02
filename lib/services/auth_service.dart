@@ -107,7 +107,8 @@ class AuthService {
   Future<void> _saveUserProfile(User user,
       {String nome = 'Cliente',
       String telefone = '',
-      String role = 'cliente'}) async {
+      String role = 'cliente',
+      bool acceptedLegal = false}) async {
     final ref = _db.collection('users').doc(user.uid);
     final existing = await ref.get();
     final existingData = existing.data();
@@ -128,6 +129,11 @@ class AuthService {
 
     if (!existing.exists) {
       data['createdAt'] = FieldValue.serverTimestamp();
+      if (acceptedLegal) {
+        data['acceptedLegalAt'] = FieldValue.serverTimestamp();
+        data['acceptedPrivacyVersion'] = '2026-07-02';
+        data['acceptedTermsVersion'] = '2026-07-02';
+      }
     }
 
     await ref.set(data, SetOptions(merge: true));
@@ -160,14 +166,20 @@ class AuthService {
       {required String email,
       required String password,
       String nome = 'Cliente',
-      String telefone = ''}) async {
+      String telefone = '',
+      bool acceptedLegal = false}) async {
     final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(), password: password);
     final user = credential.user;
     if (user == null) throw Exception('Erro ao registar conta.');
 
     await user.updateDisplayName(nome);
-    await _saveUserProfile(user, nome: nome, telefone: telefone);
+    await _saveUserProfile(
+      user,
+      nome: nome,
+      telefone: telefone,
+      acceptedLegal: acceptedLegal,
+    );
     await _syncCurrentUser(user);
   }
 

@@ -103,6 +103,10 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
             const SizedBox(height: 25),
 
+            _buildTimelineCard(),
+
+            const SizedBox(height: 25),
+
             // 2. BOTÃO DE RASTREIO
             if (isTrackingAvailable) ...[
               Container(
@@ -205,6 +209,34 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
               const SizedBox(height: 30),
             ],
 
+            if ((widget.pedido.status == 'Recebido pelo Cliente' ||
+                    widget.pedido.status == 'Concluído') &&
+                widget.pedido.rating == null) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.amber[800],
+                    side: BorderSide(color: Colors.amber.withOpacity(0.4)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  onPressed: _showRatingSheet,
+                  icon: const Icon(Icons.star_rounded),
+                  label: const Text(
+                    "AVALIAR PEDIDO",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+            ],
+
             const Padding(
               padding: EdgeInsets.only(left: 5, bottom: 15),
               child: Text("Itens do Pedido",
@@ -265,13 +297,203 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   }
 
   Future<void> _confirmarRecebido() async {
-    await DatabaseService()
-        .updateOrderStatus(widget.pedido.id, 'Recebido pelo Cliente');
+    await DatabaseService().updateOrderStatus(
+      widget.pedido.id,
+      'Recebido pelo Cliente',
+      actor: 'cliente',
+    );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Obrigado! Pedido confirmado.')),
     );
     Navigator.pop(context);
+  }
+
+  Widget _buildTimelineCard() {
+    final fallback = [
+      {
+        'status': widget.pedido.status,
+        'label': widget.pedido.status,
+        'actor': 'sistema',
+        'timestamp': widget.pedido.dataPedido.toIso8601String(),
+      }
+    ];
+    final history = widget.pedido.statusHistory.isEmpty
+        ? fallback
+        : widget.pedido.statusHistory;
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 15,
+              offset: const Offset(0, 5))
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Histórico do Pedido",
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 18,
+              color: Color(0xFF2D3436),
+            ),
+          ),
+          const SizedBox(height: 18),
+          for (var i = 0; i < history.length; i++)
+            _buildTimelineRow(history[i], i == history.length - 1),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineRow(Map<String, dynamic> item, bool isLast) {
+    final label = item['label']?.toString() ??
+        item['status']?.toString() ??
+        'Atualização';
+    final actor = item['actor']?.toString() ?? 'sistema';
+    final date = DateTime.tryParse(item['timestamp']?.toString() ?? '');
+    final dateText =
+        date == null ? '' : DateFormat('dd/MM HH:mm', 'pt_PT').format(date);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Column(
+          children: [
+            Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: isLast ? _primaryColor : Colors.grey[300],
+                shape: BoxShape.circle,
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 36,
+                color: Colors.grey[200],
+              ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF2D3436),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  [actor, dateText]
+                      .where((part) => part.isNotEmpty)
+                      .join(' • '),
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showRatingSheet() {
+    int selectedRating = 5;
+    final commentController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Avaliar pedido',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: List.generate(5, (index) {
+                      final value = index + 1;
+                      return IconButton(
+                        onPressed: () =>
+                            setModalState(() => selectedRating = value),
+                        icon: Icon(
+                          value <= selectedRating
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                          color: Colors.amber[700],
+                          size: 34,
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: commentController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Comentário opcional',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        await DatabaseService().rateOrder(
+                          pedidoId: widget.pedido.id,
+                          rating: selectedRating,
+                          comment: commentController.text,
+                        );
+                        if (!mounted) return;
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Obrigado pela avaliação.')),
+                        );
+                      },
+                      icon: const Icon(Icons.check_rounded),
+                      label: const Text('Guardar avaliação'),
+                    ),
+                  )
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Widget _buildStatusHeader(String data, bool isCancelled, bool isCompleted) {

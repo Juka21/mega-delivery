@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 import 'admin_dashboard_screen.dart';
 import 'address_screen.dart';
 import 'edit_profile_screen.dart';
+import 'legal_document_screen.dart';
 import 'support_tickets_screen.dart';
 import '../services/database_service.dart';
 
@@ -90,6 +93,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           setState(() =>
                               _notificationsEnabled = !_notificationsEnabled);
                         }, isSwitch: true),
+                        _buildDivider(),
+                        _buildMenuItem(
+                            Icons.download_rounded,
+                            Colors.teal,
+                            "Exportar os meus dados",
+                            "Ver e copiar dados guardados", () {
+                          _exportUserData();
+                        }),
                       ]),
                       const SizedBox(height: 25),
                       _buildSectionTitle("SUPORTE & LEGAL"),
@@ -105,14 +116,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _buildDivider(),
                         _buildMenuItem(Icons.policy_rounded, Colors.grey,
                             "Política de Privacidade", null, () {
-                          _launchURL(
-                              'https://docs.google.com/document/d/1XyZk9qW_nEaVbJc_rK_5L_zX_yN_mP_o_qR_sT_uV_w/edit?usp=sharing');
+                          _openLegalDocument(
+                            'Politica de Privacidade',
+                            LegalDocumentScreen.privacyAsset,
+                          );
                         }),
                         _buildDivider(),
                         _buildMenuItem(Icons.description_rounded, Colors.grey,
                             "Termos e Condições", null, () {
-                          _launchURL(
-                              'https://docs.google.com/document/d/1XyZk9qW_nEaVbJc_rK_5L_zX_yN_mP_o_qR_sT_uV_w/edit?usp=sharing');
+                          _openLegalDocument(
+                            'Termos e Condicoes',
+                            LegalDocumentScreen.termsAsset,
+                          );
+                        }),
+                        _buildDivider(),
+                        _buildMenuItem(Icons.info_outline_rounded, Colors.grey,
+                            "AlergÃ©nios, Reembolsos e Contactos", null, () {
+                          _openLegalDocument(
+                            'Alergenios, Reembolsos e Contactos',
+                            'docs/ALERGENIOS_REEMBOLSOS_CONTACTOS.md',
+                          );
                         }),
                       ]),
                       const SizedBox(height: 30),
@@ -460,14 +483,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text("Tens a certeza?"),
+        title: const Text("Pedir apagamento da conta?"),
         content: const Text("Esta ação é irreversível."),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(c), child: const Text("Cancelar")),
           ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () {},
+              onPressed: () async {
+                Navigator.pop(c);
+                await _requestAccountDeletion();
+              },
               child:
                   const Text("Apagar", style: TextStyle(color: Colors.white))),
         ],
@@ -475,9 +501,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Future<void> _exportUserData() async {
+    try {
+      final data = await DatabaseService().exportCurrentUserData();
+      const encoder = JsonEncoder.withIndent('  ');
+      final text = encoder.convert(data);
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Os meus dados'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: SelectableText(
+                text,
+                style: const TextStyle(fontSize: 12, height: 1.35),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: text));
+                if (!ctx.mounted) return;
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Dados copiados.')),
+                );
+              },
+              child: const Text('Copiar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Fechar'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Nao foi possivel exportar: $e')),
+      );
+    }
+  }
+
+  Future<void> _requestAccountDeletion() async {
+    try {
+      await DatabaseService().requestAccountDeletion();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pedido de apagamento registado.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao pedir apagamento: $e')),
+      );
+    }
+  }
+
   Future<void> _launchURL(String urlString) async {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication))
       throw Exception('Could not launch $url');
+  }
+
+  void _openLegalDocument(String title, String assetPath) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LegalDocumentScreen(
+          title: title,
+          assetPath: assetPath,
+        ),
+      ),
+    );
   }
 }

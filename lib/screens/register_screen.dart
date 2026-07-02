@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'legal_document_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -22,6 +23,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _acceptedLegal = false;
 
   @override
   void dispose() {
@@ -34,6 +36,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
+    if (!_acceptedLegal) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Tens de aceitar a politica e os termos para criar conta.'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
@@ -43,6 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: _passwordController.text.trim(),
         nome: _nameController.text.trim(),
         telefone: _phoneController.text.trim(),
+        acceptedLegal: true,
       );
 
       if (mounted) {
@@ -129,6 +144,103 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
       ),
       validator: validator,
+    );
+  }
+
+  void _openLegalDocument(String title, String assetPath) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LegalDocumentScreen(
+          title: title,
+          assetPath: assetPath,
+        ),
+      ),
+    );
+  }
+
+  Widget _legalConsent() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _orange.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Checkbox(
+            value: _acceptedLegal,
+            activeColor: _orange,
+            onChanged: (value) {
+              setState(() => _acceptedLegal = value ?? false);
+            },
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  const Text(
+                    'Li e aceito a ',
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => _openLegalDocument(
+                      'Politica de Privacidade',
+                      LegalDocumentScreen.privacyAsset,
+                    ),
+                    child: const Text(
+                      'Politica de Privacidade',
+                      style: TextStyle(
+                        color: _orange,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  const Text(
+                    ' e os ',
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => _openLegalDocument(
+                      'Termos e Condicoes',
+                      LegalDocumentScreen.termsAsset,
+                    ),
+                    child: const Text(
+                      'Termos e Condicoes',
+                      style: TextStyle(
+                        color: _orange,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  const Text(
+                    '.',
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -224,6 +336,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           return null;
                         },
                       ),
+                      const SizedBox(height: 16),
+                      _legalConsent(),
                       const SizedBox(height: 22),
                       SizedBox(
                         width: double.infinity,

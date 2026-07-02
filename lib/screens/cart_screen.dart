@@ -171,6 +171,16 @@ class _CartScreenState extends State<CartScreen> {
 
   Future<void> _iniciarPagamento(double total, List<Map<String, dynamic>> itens,
       List<String> cartDocIds) async {
+    final storeSettings = await db.getStoreSettingsOnce();
+    final storeOpen = storeSettings['isOpen'] != false;
+    if (!storeOpen && !_isAdminUser()) {
+      final message = storeSettings['closedMessage']?.toString() ??
+          DatabaseService.defaultStoreSettings['closedMessage'].toString();
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.orange));
+      return;
+    }
+
     if (!_podeFazerPedidoAgora()) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text(

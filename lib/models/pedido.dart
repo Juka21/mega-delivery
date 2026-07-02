@@ -9,16 +9,19 @@ class Pedido {
   final String? moradaEntrega;
   final double total;
   final String estado;
-  final DateTime dataPedido; 
+  final DateTime dataPedido;
   final List<ItemPedido> itens;
   final String? driverId;
-  
+
   final String metodoEntrega;
   final double taxaEntrega;
   final String? tempoEstimado;
   final String metodoPagamento;
   final String? trocoPara;
-  final String nif; 
+  final String nif;
+  final List<Map<String, dynamic>> statusHistory;
+  final int? rating;
+  final String? ratingComment;
 
   final double? driverLat;
   final double? driverLng;
@@ -39,9 +42,12 @@ class Pedido {
     this.metodoEntrega = 'Entrega',
     this.taxaEntrega = 0.0,
     this.tempoEstimado,
-    this.metodoPagamento = 'N/A', 
+    this.metodoPagamento = 'N/A',
     this.trocoPara,
     this.nif = "Consumidor Final",
+    this.statusHistory = const [],
+    this.rating,
+    this.ratingComment,
     this.driverLat,
     this.driverLng,
     this.clienteLat,
@@ -49,24 +55,26 @@ class Pedido {
     this.driverId,
   });
 
-  String get status => estado; 
+  String get status => estado;
   DateTime get data => dataPedido;
   String get clienteId => userId;
 
   factory Pedido.fromMap(Map<String, dynamic> data) {
-    
     // 🛡️ Lógica de data "À Prova de Bala"
     DateTime dataCorrigida = DateTime.now();
     try {
       if (data['dataHora'] != null && data['dataHora'].toString().isNotEmpty) {
         dataCorrigida = DateTime.parse(data['dataHora'].toString());
-      } else if (data['dataPedido'] != null && data['dataPedido'].toString().isNotEmpty) {
+      } else if (data['dataPedido'] != null &&
+          data['dataPedido'].toString().isNotEmpty) {
         dataCorrigida = DateTime.parse(data['dataPedido'].toString());
-      } else if (data['criadoEm'] != null && data['criadoEm'].toString().isNotEmpty) {
+      } else if (data['criadoEm'] != null &&
+          data['criadoEm'].toString().isNotEmpty) {
         dataCorrigida = DateTime.parse(data['criadoEm'].toString());
       }
     } catch (e) {
-      debugPrint("⚠️ Aviso: Formato de data inválido no pedido ${data['_id']}. Usando data atual.");
+      debugPrint(
+          "⚠️ Aviso: Formato de data inválido no pedido ${data['_id']}. Usando data atual.");
       // Falha silenciosamente mas mete a data de hoje para a App não crashar!
     }
 
@@ -80,24 +88,40 @@ class Pedido {
         }).toList();
       }
     } catch (e) {
-      debugPrint("⚠️ Aviso: Erro ao ler itens do pedido ${data['_id']}. Lista vazia.");
+      debugPrint(
+          "⚠️ Aviso: Erro ao ler itens do pedido ${data['_id']}. Lista vazia.");
     }
 
     return Pedido(
-      id: data['_id']?.toString() ?? data['id']?.toString() ?? 'ID_DESCONHECIDO',
+      id: data['_id']?.toString() ??
+          data['id']?.toString() ??
+          'ID_DESCONHECIDO',
       userId: data['userId']?.toString() ?? 'USER_DESCONHECIDO',
-      nomeCliente: data['cliente']?.toString() ?? data['nomeCliente']?.toString() ?? 'Cliente',
+      nomeCliente: data['cliente']?.toString() ??
+          data['nomeCliente']?.toString() ??
+          'Cliente',
       telefoneCliente: data['telefoneCliente']?.toString(),
       fotoCliente: data['fotoCliente']?.toString(),
-      moradaEntrega: data['morada']?.toString() ?? data['moradaEntrega']?.toString(),
+      moradaEntrega:
+          data['morada']?.toString() ?? data['moradaEntrega']?.toString(),
       total: (data['total'] as num?)?.toDouble() ?? 0.0,
       taxaEntrega: (data['taxaEntrega'] as num?)?.toDouble() ?? 0.0,
-      estado: data['status']?.toString() ?? data['estado']?.toString() ?? 'Pendente',
+      estado: data['status']?.toString() ??
+          data['estado']?.toString() ??
+          'Pendente',
       dataPedido: dataCorrigida,
       metodoEntrega: data['metodoEntrega']?.toString() ?? 'Entrega',
       tempoEstimado: data['tempoEstimado']?.toString(),
       metodoPagamento: data['metodoPagamento']?.toString() ?? 'N/A',
       nif: data['nif']?.toString() ?? "Consumidor Final",
+      statusHistory: data['statusHistory'] is List
+          ? (data['statusHistory'] as List)
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList()
+          : [],
+      rating: (data['rating'] as num?)?.toInt(),
+      ratingComment: data['ratingComment']?.toString(),
       itens: itensLidos,
       driverId: data['driverId']?.toString(),
     );
@@ -106,11 +130,11 @@ class Pedido {
 
 class ItemPedido {
   final String id;
-  final String nomePrato; 
+  final String nomePrato;
   final double precoUnitario;
   final int quantidade;
   final List<dynamic> extras;
-  final String? nota; 
+  final String? nota;
 
   ItemPedido({
     required this.id,
@@ -123,8 +147,13 @@ class ItemPedido {
 
   factory ItemPedido.fromMap(Map<String, dynamic> map) {
     return ItemPedido(
-      id: map['id']?.toString() ?? map['_id']?.toString() ?? map['pratoId']?.toString() ?? 'ID_ITEM',
-      nomePrato: map['nome']?.toString() ?? map['nomePrato']?.toString() ?? "Item Sem Nome", 
+      id: map['id']?.toString() ??
+          map['_id']?.toString() ??
+          map['pratoId']?.toString() ??
+          'ID_ITEM',
+      nomePrato: map['nome']?.toString() ??
+          map['nomePrato']?.toString() ??
+          "Item Sem Nome",
       precoUnitario: (map['preco'] as num?)?.toDouble() ?? 0.0,
       quantidade: (map['quantidade'] as num?)?.toInt() ?? 1,
       extras: map['extras'] is List ? map['extras'] : [],

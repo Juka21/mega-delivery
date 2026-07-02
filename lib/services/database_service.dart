@@ -13,6 +13,12 @@ class DatabaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
+  static const Map<String, dynamic> defaultStoreSettings = {
+    'isOpen': true,
+    'closedMessage':
+        'Estamos fechados neste momento. Podes consultar o menu e voltar mais tarde.',
+  };
+
   Map<String, dynamic> _withId(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
     return {
@@ -296,10 +302,19 @@ class DatabaseService {
 
   Future<bool> criarPedido(Map<String, dynamic> pedidoData) async {
     try {
+      final status = pedidoData['status'] ?? 'Pendente';
       await _db.collection('pedidos').doc(pedidoData['id']?.toString()).set({
         ...pedidoData,
-        'status': pedidoData['status'] ?? 'Pendente',
-        'estado': pedidoData['estado'] ?? pedidoData['status'] ?? 'Pendente',
+        'status': status,
+        'estado': pedidoData['estado'] ?? status,
+        'statusHistory': [
+          {
+            'status': status,
+            'label': 'Pedido criado',
+            'actor': 'cliente',
+            'timestamp': DateTime.now().toIso8601String(),
+          }
+        ],
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -624,10 +639,19 @@ class DatabaseService {
     String pedidoId,
     String novoEstado, {
     String? tempoEstimado,
+    String actor = 'sistema',
   }) async {
     final data = <String, dynamic>{
       'status': novoEstado,
       'estado': novoEstado,
+      'statusHistory': FieldValue.arrayUnion([
+        {
+          'status': novoEstado,
+          'label': novoEstado,
+          'actor': actor,
+          'timestamp': DateTime.now().toIso8601String(),
+        }
+      ]),
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
@@ -639,6 +663,83 @@ class DatabaseService {
           data,
           SetOptions(merge: true),
         );
+  }
+
+  Future<void> rateOrder({
+    required String pedidoId,
+    required int rating,
+    String comment = '',
+  }) async {
+    await _db.collection('pedidos').doc(pedidoId).set({
+      'rating': rating,
+      'ratingComment': comment.trim(),
+      'ratedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Stream<Map<String, dynamic>> get storeSettingsStream {
+    return _db.collection('app_settings').doc('store').snapshots().map((doc) {
+      if (!doc.exists) return Map<String, dynamic>.from(defaultStoreSettings);
+      return {
+        ...defaultStoreSettings,
+        ...?doc.data(),
+        'id': doc.id,
+      };
+    });
+  }
+
+  Future<Map<String, dynamic>> getStoreSettingsOnce() async {
+    final doc = await _db.collection('app_settings').doc('store').get();
+    if (!doc.exists) return Map<String, dynamic>.from(defaultStoreSettings);
+    return {
+      ...defaultStoreSettings,
+      ...?doc.data(),
+      'id': doc.id,
+    };
+  }
+
+  Future<void> updateStoreSettings({
+    required bool isOpen,
+    required String closedMessage,
+  }) async {
+    await _db.collection('app_settings').doc('store').set({
+      'isOpen': isOpen,
+      'closedMessage': closedMessage.isEmpty
+          ? defaultStoreSettings['closedMessage']
+          : closedMessage,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<Map<String, dynamic>> exportCurrentUserData() async {
+    final user = AuthService().currentUser;
+    if (user == null) throw Exception('Inicia sessao novamente.');
+
+    final userDoc = await _db.collection('users').doc(user.uid).get();
+    final orders = await getOrdersForUser(user.uid);
+    final addresses = await getUserAddressesOnce(user.uid);
+
+    return {
+      'exportedAt': DateTime.now().toIso8601String(),
+      'user': userDoc.data() ?? user.toMap(),
+      'addresses': addresses,
+      'orders': orders,
+    };
+  }
+
+  Future<void> requestAccountDeletion() async {
+    final user = AuthService().currentUser;
+    if (user == null) throw Exception('Inicia sessao novamente.');
+
+    await _db.collection('account_deletion_requests').doc(user.uid).set({
+      'userId': user.uid,
+      'email': user.email,
+      'nome': user.nome,
+      'status': 'Pendente',
+      'requestedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Future<void> updateDriver(String driverId, Map<String, dynamic> dados) async {

@@ -119,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
           physics: const BouncingScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(child: _buildHeader(allPratos)),
+            SliverToBoxAdapter(child: _buildStoreClosedBanner()),
             if (_searchQuery.isEmpty)
               SliverToBoxAdapter(child: _buildCreateBurgerBanner()),
             if (_searchQuery.isNotEmpty)
@@ -127,6 +128,78 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildListaCategoriasSliver(allPratos),
             const SliverToBoxAdapter(child: SizedBox(height: 110)),
           ],
+        );
+      },
+    );
+  }
+
+  Widget _buildStoreClosedBanner() {
+    return StreamBuilder<Map<String, dynamic>>(
+      stream: db.storeSettingsStream,
+      builder: (context, snapshot) {
+        final data = snapshot.data ?? DatabaseService.defaultStoreSettings;
+        final isOpen = data['isOpen'] != false;
+        if (isOpen) return const SizedBox.shrink();
+
+        final message = data['closedMessage']?.toString() ??
+            DatabaseService.defaultStoreSettings['closedMessage'].toString();
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF17212B),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: _brand.withOpacity(0.14),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.lock_clock_rounded,
+                      color: _brand, size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Loja fechada',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        message,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          height: 1.35,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              ],
+            ),
+          ),
         );
       },
     );

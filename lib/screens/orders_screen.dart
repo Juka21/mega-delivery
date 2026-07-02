@@ -8,8 +8,11 @@ class OrdersScreen extends StatelessWidget {
   const OrdersScreen({super.key});
 
   Future<void> _confirmarRecebido(BuildContext context, String pedidoId) async {
-    await DatabaseService()
-        .updateOrderStatus(pedidoId, 'Recebido pelo Cliente');
+    await DatabaseService().updateOrderStatus(
+      pedidoId,
+      'Recebido pelo Cliente',
+      actor: 'cliente',
+    );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Obrigado! Pedido confirmado.')),
@@ -68,10 +71,95 @@ class OrdersScreen extends StatelessWidget {
               color: _statusColor(pedidos[index].estado),
               onConfirmReceived: () =>
                   _confirmarRecebido(context, pedidos[index].id),
+              onRate: () => _showRatingSheet(context, pedidos[index]),
             ),
           );
         },
       ),
+    );
+  }
+
+  void _showRatingSheet(BuildContext context, Pedido pedido) {
+    int selectedRating = 5;
+    final commentController = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                20,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Avaliar pedido',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: List.generate(5, (index) {
+                      final value = index + 1;
+                      return IconButton(
+                        onPressed: () =>
+                            setModalState(() => selectedRating = value),
+                        icon: Icon(
+                          value <= selectedRating
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                          color: Colors.amber[700],
+                          size: 34,
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: commentController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Comentário opcional',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        await DatabaseService().rateOrder(
+                          pedidoId: pedido.id,
+                          rating: selectedRating,
+                          comment: commentController.text,
+                        );
+                        if (!context.mounted) return;
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Obrigado pela avaliação.')),
+                        );
+                      },
+                      icon: const Icon(Icons.check_rounded),
+                      label: const Text('Guardar avaliação'),
+                    ),
+                  )
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -80,11 +168,13 @@ class _OrderCard extends StatelessWidget {
   final Pedido pedido;
   final Color color;
   final VoidCallback onConfirmReceived;
+  final VoidCallback onRate;
 
   const _OrderCard({
     required this.pedido,
     required this.color,
     required this.onConfirmReceived,
+    required this.onRate,
   });
 
   @override
@@ -175,6 +265,53 @@ class _OrderCard extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
+              ),
+            ],
+            if ((pedido.estado == 'Recebido pelo Cliente' ||
+                    pedido.estado == 'Concluído') &&
+                pedido.rating == null) ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.amber[800],
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: onRate,
+                  icon: const Icon(Icons.star_rounded),
+                  label: const Text(
+                    'Avaliar pedido',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+            if (pedido.rating != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.star_rounded, color: Colors.amber[700], size: 18),
+                  const SizedBox(width: 5),
+                  Text(
+                    '${pedido.rating}/5',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  if ((pedido.ratingComment ?? '').isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        pedido.ratingComment!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ],

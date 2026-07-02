@@ -48,6 +48,16 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /app_settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /account_deletion_requests/{requestId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+    }
+
     match /moradas/{addressId} {
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow read, update, delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
