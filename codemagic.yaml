@@ -17,9 +17,9 @@ workflows:
       - name: Set up iOS code signing
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
           keychain add-certificates
           xcode-project use-profiles
+          find "$HOME/Library/MobileDevice/Provisioning Profiles" -name "*.mobileprovision" -print
       - name: Run tests
         script: flutter test
       - name: Build iOS IPA
