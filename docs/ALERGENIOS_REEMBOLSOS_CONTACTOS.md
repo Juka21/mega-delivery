@@ -4,7 +4,6 @@ Ultima atualizacao: 2 de julho de 2026
 
 Este documento complementa a Política de Privacidade e os Termos e Condições da aplicação Mega Cachorro / Mega Delivery.
 
-Antes de publicar, preenche os dados oficiais da loja e valida a informacao alimentar com a equipa responsavel.
 
 ## 1. Contactos oficiais
 
@@ -12,17 +11,23 @@ Nome comercial: Mega Cachorro / Mega Delivery
 
 Operador legal: [NOME LEGAL DA EMPRESA OU EMPRESARIO EM NOME INDIVIDUAL]
 
-NIF: [NIF]
+NIF: 515228869
 
-Morada: [MORADA FISCAL OU COMERCIAL]
+Morada: Av. Dr. José Henriques Vareda 22, 2430-307 Marinha Grande
 
-Telefone: [TELEFONE]
+Telefone: 916996992
 
-Email geral: [EMAIL DE SUPORTE]
+Email geral: Juka77@outlook.pt
 
-Email para privacidade/dados pessoais: [EMAIL DE PRIVACIDADE]
+Email para privacidade/dados pessoais: Juka77@outlook.pt
 
-Horario de atendimento: [HORARIO]
+Horario de atendimento: Segunda-feira: Encerrado
+                        Terça-feira: Encerrado
+                        Quarta-feira: 12:00 - 15:00 / 19:00 - 22:00
+                        Quinta-feira: 12:00 - 15:00 / 19:00 - 22:00
+                        Sexta-feira: 12:00 - 15:00 / 19:00 - 22:00
+                        Sábado: 12:00 - 15:00 / 19:00 - 22:00
+                        Domingo: 12:00 - 15:00 / 19:00 - 22:00
 
 ## 2. Alergénios e restrições alimentares
 

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/auth_service.dart';
 import 'admin_dashboard_screen.dart';
 import 'address_screen.dart';
@@ -21,11 +20,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _notificationsEnabled = true;
-
-  final String _creatorName = "Juliano Cruz";
-  final String _instagramLink = "https://www.instagram.com/juka_77_/";
-  final String _whatsappLink =
-      "https://chat.whatsapp.com/JuRrfvMw9FsLn0ooYUvGgr";
 
   @override
   Widget build(BuildContext context) {
@@ -47,22 +41,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.all(20),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _buildSectionTitle("ÁREA RESTRITA"),
+                      _buildSectionTitle("ÃREA RESTRITA"),
                       _buildMenuCard([
-                        // 1. O Botão do Estafeta (Aparece para todos)
+                        // 1. O BotÃ£o do Estafeta (Aparece para todos)
                         _buildMenuItem(Icons.motorcycle_rounded, Colors.blue,
-                            "Área de Estafeta", "Entrar com PIN", () {
+                            "Ãrea de Estafeta", "Entrar com PIN", () {
                           _mostrarLoginEstafeta(context);
                         }),
 
-                        // 2. O Botão do Admin (SÓ APARECE SE FOR O CHEFE!)
+                        // 2. O BotÃ£o do Admin (SÃ“ APARECE SE FOR O CHEFE!)
                         if (user?.role == 'admin') ...[
                           _buildDivider(),
                           _buildMenuItem(
                               Icons.admin_panel_settings,
                               Colors.red,
-                              "Painel de Administração",
-                              "Gestão do Mega Delivery", () {
+                              "Painel de AdministraÃ§Ã£o",
+                              "GestÃ£o do Mega Delivery", () {
                             Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -88,7 +82,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _buildMenuItem(
                             Icons.notifications_active_rounded,
                             Colors.orange,
-                            "Notificações",
+                            "NotificaÃ§Ãµes",
                             "Alertas de pedidos", () {
                           setState(() =>
                               _notificationsEnabled = !_notificationsEnabled);
@@ -115,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         }),
                         _buildDivider(),
                         _buildMenuItem(Icons.policy_rounded, Colors.grey,
-                            "Política de Privacidade", null, () {
+                            "PolÃ­tica de Privacidade", null, () {
                           _openLegalDocument(
                             'Politica de Privacidade',
                             LegalDocumentScreen.privacyAsset,
@@ -123,7 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         }),
                         _buildDivider(),
                         _buildMenuItem(Icons.description_rounded, Colors.grey,
-                            "Termos e Condições", null, () {
+                            "Termos e CondiÃ§Ãµes", null, () {
                           _openLegalDocument(
                             'Termos e Condicoes',
                             LegalDocumentScreen.termsAsset,
@@ -131,44 +125,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         }),
                         _buildDivider(),
                         _buildMenuItem(Icons.info_outline_rounded, Colors.grey,
-                            "Alergénios, Reembolsos e Contactos", null, () {
+                            "AlergÃ©nios, Reembolsos e Contactos", null, () {
                           _openLegalDocument(
-                            'Alergénios, Reembolsos e Contactos',
+                            'AlergÃ©nios, Reembolsos e Contactos',
                             'docs/ALERGENIOS_REEMBOLSOS_CONTACTOS.md',
                           );
                         }),
                       ]),
                       const SizedBox(height: 30),
                       _buildLogoutButton(),
-                      const SizedBox(height: 40),
-                      Column(
-                        children: [
-                          Text("Desenvolvido com ❤️ por $_creatorName",
-                              style: TextStyle(
-                                  color: Colors.grey[500],
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _socialButton(Icons.camera_alt_outlined,
-                                  "Instagram", Colors.pink, _instagramLink),
-                              const SizedBox(width: 15),
-                              _socialButton(Icons.chat_bubble_outline,
-                                  "Comunidade", Colors.green, _whatsappLink),
-                            ],
-                          ),
-                          const SizedBox(height: 15),
-                          TextButton(
-                            onPressed: () => _confirmDelete(context),
-                            child: Text("Apagar conta",
-                                style: TextStyle(
-                                    color: Colors.grey[400],
-                                    fontSize: 11,
-                                    decoration: TextDecoration.underline)),
-                          ),
-                        ],
+                      const SizedBox(height: 15),
+                      TextButton(
+                        onPressed: () => _confirmDelete(context),
+                        child: Text("Apagar conta",
+                            style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 11,
+                                decoration: TextDecoration.underline)),
                       ),
                       const SizedBox(height: 100),
                     ]),
@@ -180,36 +153,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
   }
 
-  Widget _socialButton(IconData icon, String label, Color color, String url) {
-    return GestureDetector(
-      onTap: () => _launchURL(url),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 5,
-                offset: const Offset(0, 2))
-          ],
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 8),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey[700])),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _mostrarLoginEstafeta(BuildContext context) {
     final pinController = TextEditingController();
 
@@ -217,11 +160,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Acesso Estafeta 🛵"),
+        title: const Text("Acesso Estafeta ðŸ›µ"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text("Insere o teu PIN de 4 dígitos:"),
+            const Text("Insere o teu PIN de 4 dÃ­gitos:"),
             const SizedBox(height: 10),
             TextField(
               controller: pinController,
@@ -249,10 +192,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () async {
               String pinDigitado = pinController.text;
               if (pinDigitado.length != 4)
-                return; // Só avança se tiver 4 números
+                return; // SÃ³ avanÃ§a se tiver 4 nÃºmeros
 
               try {
-                // 🚀 AGORA CHAMA DIRETAMENTE O NODE.JS
+                // ðŸš€ AGORA CHAMA DIRETAMENTE O NODE.JS
                 final driver =
                     await DatabaseService().getDriverByPin(pinDigitado);
 
@@ -262,11 +205,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // PIN CERTO!
                   String driverId = (driver['id'] ?? driver['_id']).toString();
 
-                  widget.onDriverLogin(driverId); // Abre o ecrã do estafeta
+                  widget.onDriverLogin(driverId); // Abre o ecrÃ£ do estafeta
 
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text("Bem-vindo! Modo Estafeta Ativado. 🏍️"),
+                      content:
+                          Text("Bem-vindo! Modo Estafeta Ativado. ðŸï¸"),
                       backgroundColor: Colors.green,
                     ));
                   }
@@ -274,13 +218,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // PIN ERRADO
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text("PIN Incorreto ❌"),
+                      content: Text("PIN Incorreto âŒ"),
                       backgroundColor: Colors.red,
                     ));
                   }
                 }
               } catch (e) {
-                print("Erro de ligação: $e");
+                print("Erro de ligaÃ§Ã£o: $e");
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -298,7 +242,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildHeaderCard(AppUser? user) {
-    // ✅ LÓGICA DE NOME RESTAURADA PARA O TEU DESIGN ORIGINAL
+    // âœ… LÃ“GICA DE NOME RESTAURADA PARA O TEU DESIGN ORIGINAL
     String displayNome = "Visitante";
     String displayEmail = "Sem email";
 
@@ -473,7 +417,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onPressed: () async {
           await AuthService().signOut();
         },
-        child: const Text("Terminar Sessão",
+        child: const Text("Terminar SessÃ£o",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
       ),
     );
@@ -484,7 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (c) => AlertDialog(
         title: const Text("Pedir apagamento da conta?"),
-        content: const Text("Esta ação é irreversível."),
+        content: const Text("Esta aÃ§Ã£o Ã© irreversÃ­vel."),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(c), child: const Text("Cancelar")),
@@ -564,12 +508,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         SnackBar(content: Text('Erro ao pedir apagamento: $e')),
       );
     }
-  }
-
-  Future<void> _launchURL(String urlString) async {
-    final Uri url = Uri.parse(urlString);
-    if (!await launchUrl(url, mode: LaunchMode.externalApplication))
-      throw Exception('Could not launch $url');
   }
 
   void _openLegalDocument(String title, String assetPath) {
