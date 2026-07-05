@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'dart:async';
+import 'dart:ui';
 import 'config/app_config.dart';
 import 'screens/splash_screen.dart';
 import 'services/auth_service.dart';
@@ -11,10 +13,52 @@ import 'package:firebase_core/firebase_core.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('Flutter error: ${details.exceptionAsString()}');
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('Platform error: $error');
+    debugPrintStack(stackTrace: stack);
+    return true;
+  };
+
+  ErrorWidget.builder = (details) => Material(
+        color: const Color(0xFFF6F7FB),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    color: Color(0xFFFF8A00), size: 42),
+                const SizedBox(height: 14),
+                const Text(
+                  'Nao foi possivel abrir esta pagina.',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  details.exceptionAsString(),
+                  style: const TextStyle(height: 1.35),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
   try {
     await Firebase.initializeApp();
 
-    await NotificationService().inicializar();
+    try {
+      await NotificationService().inicializar();
+    } catch (e) {
+      debugPrint("Erro nas notificacoes: $e");
+    }
     if (AppConfig.stripePublishableKey.isNotEmpty) {
       Stripe.publishableKey = AppConfig.stripePublishableKey;
       Stripe.merchantIdentifier = AppConfig.stripeMerchantIdentifier;
@@ -25,14 +69,24 @@ void main() async {
           "Stripe publishable key not configured. Pass STRIPE_PUBLISHABLE_KEY with --dart-define.");
     }
 
-    await AuthService().inicializar();
+    try {
+      await AuthService().inicializar();
+    } catch (e) {
+      debugPrint("Erro no AuthService: $e");
+    }
   } catch (e) {
     debugPrint("❌ Erro na Inicialização: $e");
   }
 
   debugPrint("🚀 Tudo pronto! A iniciar a interface gráfica...");
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-  runApp(const MyApp());
+  runZonedGuarded(
+    () => runApp(const MyApp()),
+    (error, stack) {
+      debugPrint('Uncaught zone error: $error');
+      debugPrintStack(stackTrace: stack);
+    },
+  );
 }
 
 class MyApp extends StatelessWidget {

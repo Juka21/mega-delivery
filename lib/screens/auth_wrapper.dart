@@ -9,21 +9,22 @@ class AuthWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<AppUser?>(
-      initialData: AuthService().currentUser, 
+      initialData: AuthService().currentUser,
       stream: AuthService().userChanges,
       builder: (context, snapshot) {
-        
-        // Vai buscar o utilizador (seja da memória inicial ou do stream)
+        if (snapshot.hasError) {
+          debugPrint('Erro no estado de autenticacao: ${snapshot.error}');
+          return const AuthScreen();
+        }
+
         final utilizador = snapshot.data ?? AuthService().currentUser;
 
-        // Se encontrou alguém guardado, entra direto na Loja
         if (utilizador != null) {
-          debugPrint("✅ Utilizador detetado: ${utilizador.email}. A entrar...");
+          debugPrint('Utilizador detetado: ${utilizador.email}. A entrar...');
           return const HomeScreen();
         }
 
-        // Se não há ninguém, vai para o Login! Sem demoras nem loops.
-        debugPrint("👤 Nenhum utilizador ativo. A mostrar AuthScreen.");
+        debugPrint('Nenhum utilizador ativo. A mostrar AuthScreen.');
         return const AuthScreen();
       },
     );
