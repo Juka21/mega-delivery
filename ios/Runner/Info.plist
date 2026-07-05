@@ -43,6 +43,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Permite tirar fotografias para atualizar imagens de perfil, produtos ou comprovativos dentro da app.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Permite calcular e confirmar a morada de entrega enquanto usa a app.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Permite escolher imagens da galeria para atualizar fotografias de perfil ou produtos.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
