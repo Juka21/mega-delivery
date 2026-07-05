@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -23,30 +24,61 @@ class _AuthScreenState extends State<AuthScreen> {
   final _passwordController = TextEditingController();
   final _nomeController = TextEditingController();
   final _telefoneController = TextEditingController();
+  final _smsCodeController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final AuthService _auth = AuthService();
 
   bool _isLogin = true;
   bool _isLoading = false;
+  bool _isSendingSms = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _acceptedLegal = false;
+  String? _verificationId;
+  PhoneAuthCredential? _autoPhoneCredential;
+  String? _verifiedPhone;
+
+  @override
+  void initState() {
+    super.initState();
+    _telefoneController.addListener(_resetPhoneVerificationIfChanged);
+  }
 
   @override
   void dispose() {
+    _telefoneController.removeListener(_resetPhoneVerificationIfChanged);
     _emailController.dispose();
     _passwordController.dispose();
     _nomeController.dispose();
     _telefoneController.dispose();
+    _smsCodeController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  void _resetPhoneVerificationIfChanged() {
+    final currentPhone = _telefoneController.text.trim();
+    if (_verifiedPhone != null && currentPhone != _verifiedPhone) {
+      setState(() {
+        _verificationId = null;
+        _autoPhoneCredential = null;
+        _verifiedPhone = null;
+        _smsCodeController.clear();
+      });
+    }
   }
 
   void _switchMode(bool login) {
     if (_isLoading || _isLogin == login) return;
     setState(() {
       _isLogin = login;
-      if (login) _acceptedLegal = false;
+      if (login) {
+        _acceptedLegal = false;
+        _verificationId = null;
+        _autoPhoneCredential = null;
+        _verifiedPhone = null;
+        _smsCodeController.clear();
+      }
     });
   }
 
@@ -55,6 +87,15 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!_isLogin && !_acceptedLegal) {
       _showSnack(
         'Tens de aceitar a politica de privacidade e os termos.',
+        Colors.red,
+      );
+      return;
+    }
+
+    final phoneCredential = _isLogin ? null : _buildPhoneCredential();
+    if (!_isLogin && phoneCredential == null) {
+      _showSnack(
+        'Envia e insere o codigo SMS antes de criar conta.',
         Colors.red,
       );
       return;
@@ -76,6 +117,7 @@ class _AuthScreenState extends State<AuthScreen> {
           nome: _nomeController.text.trim(),
           telefone: _telefoneController.text.trim(),
           acceptedLegal: true,
+          phoneCredential: phoneCredential,
         );
       }
 
@@ -132,6 +174,53 @@ class _AuthScreenState extends State<AuthScreen> {
         backgroundColor: color,
         behavior: SnackBarBehavior.floating,
       ),
+    );
+  }
+
+  Future<void> _sendSmsCode() async {
+    final phone = _telefoneController.text.trim();
+    setState(() => _isSendingSms = true);
+
+    try {
+      final normalizedPhone = _auth.normalizePhoneNumber(phone);
+      await _auth.sendPhoneVerificationCode(
+        phoneNumber: normalizedPhone,
+        verificationCompleted: (credential) {
+          if (!mounted) return;
+          setState(() {
+            _autoPhoneCredential = credential;
+            _verifiedPhone = normalizedPhone;
+          });
+          _showSnack('Telemovel verificado automaticamente.', Colors.green);
+        },
+        verificationFailed: (message) {
+          _showSnack(message, Colors.red);
+        },
+        codeSent: (verificationId, resendToken) {
+          if (!mounted) return;
+          setState(() {
+            _verificationId = verificationId;
+            _verifiedPhone = normalizedPhone;
+            _smsCodeController.clear();
+          });
+          _showSnack('Codigo enviado por SMS.', Colors.green);
+        },
+      );
+    } catch (e) {
+      _showSnack(e.toString().replaceAll('Exception: ', ''), Colors.red);
+    } finally {
+      if (mounted) setState(() => _isSendingSms = false);
+    }
+  }
+
+  PhoneAuthCredential? _buildPhoneCredential() {
+    if (_autoPhoneCredential != null) return _autoPhoneCredential;
+    final verificationId = _verificationId;
+    final smsCode = _smsCodeController.text.trim();
+    if (verificationId == null || smsCode.length < 6) return null;
+    return _auth.phoneCredentialFromCode(
+      verificationId: verificationId,
+      smsCode: smsCode,
     );
   }
 
@@ -309,6 +398,8 @@ class _AuthScreenState extends State<AuthScreen> {
               },
             ),
             const SizedBox(height: 14),
+            _buildPhoneVerificationCard(),
+            const SizedBox(height: 14),
           ],
           _buildField(
             controller: _emailController,
@@ -350,6 +441,74 @@ class _AuthScreenState extends State<AuthScreen> {
               validator: (value) {
                 if (value != _passwordController.text) {
                   return 'As passwords nao coincidem';
+                }
+                return null;
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPhoneVerificationCard() {
+    final codeSent = _verificationId != null || _autoPhoneCredential != null;
+    final autoVerified = _autoPhoneCredential != null;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                autoVerified ? Icons.verified_rounded : Icons.sms_outlined,
+                color: autoVerified ? Colors.green : _orange,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  autoVerified
+                      ? 'Telemovel verificado'
+                      : codeSent
+                          ? 'Codigo SMS enviado'
+                          : 'Verificacao por SMS',
+                  style: const TextStyle(
+                    color: _ink,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: _isSendingSms ? null : _sendSmsCode,
+                child: Text(codeSent ? 'Reenviar' : 'Enviar'),
+              ),
+            ],
+          ),
+          if (!autoVerified) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _smsCodeController,
+              enabled: codeSent,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: const InputDecoration(
+                labelText: 'Codigo recebido por SMS',
+                counterText: '',
+                prefixIcon: Icon(Icons.pin_outlined),
+              ),
+              validator: (value) {
+                if (_verificationId == null) {
+                  return 'Envia primeiro o codigo SMS';
+                }
+                if ((value ?? '').trim().length < 6) {
+                  return 'Insere o codigo de 6 digitos';
                 }
                 return null;
               },
@@ -557,7 +716,7 @@ class _AuthScreenState extends State<AuthScreen> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 26,
             offset: const Offset(0, 14),
           ),
@@ -622,7 +781,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         borderRadius: BorderRadius.circular(28),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
+                            color: Colors.black.withValues(alpha: 0.06),
                             blurRadius: 26,
                             offset: const Offset(0, 14),
                           ),
@@ -707,7 +866,7 @@ class _ModeButton extends StatelessWidget {
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 14,
                       offset: const Offset(0, 6),
                     )

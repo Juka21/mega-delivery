@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import 'legal_document_screen.dart';
 
@@ -17,21 +18,104 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _smsCodeController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final AuthService _auth = AuthService();
 
   bool _isLoading = false;
+  bool _isSendingSms = false;
   bool _obscurePassword = true;
   bool _acceptedLegal = false;
+  String? _verificationId;
+  PhoneAuthCredential? _autoPhoneCredential;
+  String? _verifiedPhone;
+
+  @override
+  void initState() {
+    super.initState();
+    _phoneController.addListener(_resetPhoneVerificationIfChanged);
+  }
 
   @override
   void dispose() {
+    _phoneController.removeListener(_resetPhoneVerificationIfChanged);
     _nameController.dispose();
     _phoneController.dispose();
+    _smsCodeController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _resetPhoneVerificationIfChanged() {
+    final currentPhone = _phoneController.text.trim();
+    if (_verifiedPhone != null && currentPhone != _verifiedPhone) {
+      setState(() {
+        _verificationId = null;
+        _autoPhoneCredential = null;
+        _verifiedPhone = null;
+        _smsCodeController.clear();
+      });
+    }
+  }
+
+  void _showSnack(String message, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _sendSmsCode() async {
+    final phone = _phoneController.text.trim();
+    setState(() => _isSendingSms = true);
+
+    try {
+      final normalizedPhone = _auth.normalizePhoneNumber(phone);
+      await _auth.sendPhoneVerificationCode(
+        phoneNumber: normalizedPhone,
+        verificationCompleted: (credential) {
+          if (!mounted) return;
+          setState(() {
+            _autoPhoneCredential = credential;
+            _verifiedPhone = normalizedPhone;
+          });
+          _showSnack('Telemovel verificado automaticamente.', Colors.green);
+        },
+        verificationFailed: (message) {
+          _showSnack(message, Colors.red);
+        },
+        codeSent: (verificationId, resendToken) {
+          if (!mounted) return;
+          setState(() {
+            _verificationId = verificationId;
+            _verifiedPhone = normalizedPhone;
+            _smsCodeController.clear();
+          });
+          _showSnack('Codigo enviado por SMS.', Colors.green);
+        },
+      );
+    } catch (e) {
+      _showSnack(e.toString().replaceAll('Exception: ', ''), Colors.red);
+    } finally {
+      if (mounted) setState(() => _isSendingSms = false);
+    }
+  }
+
+  PhoneAuthCredential? _buildPhoneCredential() {
+    if (_autoPhoneCredential != null) return _autoPhoneCredential;
+    final verificationId = _verificationId;
+    final smsCode = _smsCodeController.text.trim();
+    if (verificationId == null || smsCode.length < 6) return null;
+    return _auth.phoneCredentialFromCode(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
   }
 
   Future<void> _handleRegister() async {
@@ -48,6 +132,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    final phoneCredential = _buildPhoneCredential();
+    if (phoneCredential == null) {
+      _showSnack(
+          'Envia e insere o codigo SMS antes de criar conta.', Colors.red);
+      return;
+    }
+
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
@@ -58,31 +149,88 @@ class _RegisterScreenState extends State<RegisterScreen> {
         nome: _nameController.text.trim(),
         telefone: _phoneController.text.trim(),
         acceptedLegal: true,
+        phoneCredential: phoneCredential,
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Conta criada com sucesso.'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _showSnack('Conta criada com sucesso.', Colors.green);
         Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString().replaceAll('Exception: ', '')),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _showSnack(e.toString().replaceAll('Exception: ', ''), Colors.red);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Widget _phoneVerificationCard() {
+    final codeSent = _verificationId != null || _autoPhoneCredential != null;
+    final autoVerified = _autoPhoneCredential != null;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                autoVerified ? Icons.verified_rounded : Icons.sms_outlined,
+                color: autoVerified ? Colors.green : _orange,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  autoVerified
+                      ? 'Telemovel verificado'
+                      : codeSent
+                          ? 'Codigo SMS enviado'
+                          : 'Verificacao por SMS',
+                  style: const TextStyle(
+                    color: _ink,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: _isSendingSms ? null : _sendSmsCode,
+                child: Text(codeSent ? 'Reenviar' : 'Enviar'),
+              ),
+            ],
+          ),
+          if (!autoVerified) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _smsCodeController,
+              enabled: codeSent,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: const InputDecoration(
+                labelText: 'Codigo recebido por SMS',
+                counterText: '',
+                prefixIcon: Icon(Icons.pin_outlined),
+              ),
+              validator: (value) {
+                if (_verificationId == null) {
+                  return 'Envia primeiro o codigo SMS';
+                }
+                if ((value ?? '').trim().length < 6) {
+                  return 'Insere o codigo de 6 digitos';
+                }
+                return null;
+              },
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildLogo() {
@@ -95,7 +243,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -275,7 +423,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   borderRadius: BorderRadius.circular(28),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.06),
+                      color: Colors.black.withValues(alpha: 0.06),
                       blurRadius: 26,
                       offset: const Offset(0, 14),
                     ),
@@ -308,6 +456,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           return null;
                         },
                       ),
+                      const SizedBox(height: 14),
+                      _phoneVerificationCard(),
                       const SizedBox(height: 14),
                       _field(
                         controller: _emailController,

@@ -108,7 +108,8 @@ class AuthService {
       {String nome = 'Cliente',
       String telefone = '',
       String role = 'cliente',
-      bool acceptedLegal = false}) async {
+      bool acceptedLegal = false,
+      bool phoneVerified = false}) async {
     final ref = _db.collection('users').doc(user.uid);
     final existing = await ref.get();
     final existingData = existing.data();
@@ -126,6 +127,11 @@ class AuthService {
       'photoURL': existingData?['photoURL'] ?? user.photoURL ?? '',
       'updatedAt': FieldValue.serverTimestamp(),
     };
+
+    if (phoneVerified) {
+      data['phoneVerified'] = true;
+      data['phoneVerifiedAt'] = FieldValue.serverTimestamp();
+    }
 
     if (!existing.exists) {
       data['createdAt'] = FieldValue.serverTimestamp();
@@ -167,20 +173,58 @@ class AuthService {
       required String password,
       String nome = 'Cliente',
       String telefone = '',
-      bool acceptedLegal = false}) async {
-    final credential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(), password: password);
-    final user = credential.user;
-    if (user == null) throw Exception('Erro ao registar conta.');
+      bool acceptedLegal = false,
+      PhoneAuthCredential? phoneCredential}) async {
+    final normalizedPhone = normalizePhoneNumber(telefone);
+    if (phoneCredential == null) {
+      throw Exception(
+          'Confirma o codigo enviado por SMS antes de criar conta.');
+    }
 
-    await user.updateDisplayName(nome);
-    await _saveUserProfile(
-      user,
-      nome: nome,
-      telefone: telefone,
-      acceptedLegal: acceptedLegal,
-    );
-    await _syncCurrentUser(user);
+    final existingPhone = await _db
+        .collection('users')
+        .where('telefone', isEqualTo: normalizedPhone)
+        .limit(1)
+        .get();
+    if (existingPhone.docs.isNotEmpty) {
+      throw Exception('Este telemovel ja esta associado a uma conta.');
+    }
+
+    User? createdUser;
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+          email: email.trim(), password: password);
+      final user = credential.user;
+      if (user == null) throw Exception('Erro ao registar conta.');
+      createdUser = user;
+
+      await user.linkWithCredential(phoneCredential);
+      await user.updateDisplayName(nome);
+      await _saveUserProfile(
+        user,
+        nome: nome,
+        telefone: normalizedPhone,
+        acceptedLegal: acceptedLegal,
+        phoneVerified: true,
+      );
+      await _syncCurrentUser(user);
+    } on FirebaseAuthException catch (e) {
+      if (createdUser != null) {
+        try {
+          await createdUser.delete();
+        } catch (_) {}
+      }
+
+      if (e.code == 'credential-already-in-use' ||
+          e.code == 'provider-already-linked') {
+        throw Exception('Este telemovel ja esta associado a uma conta.');
+      }
+      if (e.code == 'invalid-verification-code' ||
+          e.code == 'invalid-credential') {
+        throw Exception('Codigo SMS invalido.');
+      }
+      throw Exception(e.message ?? 'Erro ao registar conta.');
+    }
   }
 
   Future<void> refreshUser() async {
@@ -200,6 +244,65 @@ class AuthService {
 
   Future<void> forgotPassword(String email) async {
     await _auth.sendPasswordResetEmail(email: email.trim());
+  }
+
+  String normalizePhoneNumber(String phone) {
+    final trimmed = phone.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
+    if (trimmed.isEmpty) {
+      throw Exception('Insere o teu telemovel.');
+    }
+
+    if (trimmed.startsWith('+')) return trimmed;
+    if (trimmed.startsWith('00')) return '+${trimmed.substring(2)}';
+
+    final digits = trimmed.replaceAll(RegExp(r'\D'), '');
+    if (digits.length == 9) return '+351$digits';
+    if (digits.startsWith('351') && digits.length == 12) return '+$digits';
+
+    throw Exception('Numero invalido. Usa um telemovel portugues valido.');
+  }
+
+  Future<void> sendPhoneVerificationCode({
+    required String phoneNumber,
+    required void Function(String verificationId, int? resendToken) codeSent,
+    required void Function(PhoneAuthCredential credential)
+        verificationCompleted,
+    required void Function(String message) verificationFailed,
+  }) async {
+    final normalizedPhone = normalizePhoneNumber(phoneNumber);
+    await _auth.verifyPhoneNumber(
+      phoneNumber: normalizedPhone,
+      timeout: const Duration(seconds: 60),
+      verificationCompleted: verificationCompleted,
+      verificationFailed: (error) {
+        verificationFailed(_formatPhoneAuthError(error));
+      },
+      codeSent: codeSent,
+      codeAutoRetrievalTimeout: (_) {},
+    );
+  }
+
+  PhoneAuthCredential phoneCredentialFromCode({
+    required String verificationId,
+    required String smsCode,
+  }) {
+    return PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: smsCode.trim(),
+    );
+  }
+
+  String _formatPhoneAuthError(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'invalid-phone-number':
+        return 'Numero de telemovel invalido.';
+      case 'too-many-requests':
+        return 'Muitos pedidos de SMS. Tenta novamente mais tarde.';
+      case 'quota-exceeded':
+        return 'Limite de SMS atingido. Tenta novamente mais tarde.';
+      default:
+        return error.message ?? 'Nao foi possivel enviar o SMS.';
+    }
   }
 
   Future<void> signInWithGoogle() async {
