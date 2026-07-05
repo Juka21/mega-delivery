@@ -1,14 +1,17 @@
+import 'dart:async';
+import 'dart:ui';
+
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
-import 'dart:async';
-import 'dart:ui';
+
 import 'config/app_config.dart';
+import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
-import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,64 +27,17 @@ void main() async {
     return true;
   };
 
-  ErrorWidget.builder = (details) => Material(
-        color: const Color(0xFFF6F7FB),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.error_outline_rounded,
-                    color: Color(0xFFFF8A00), size: 42),
-                const SizedBox(height: 14),
-                const Text(
-                  'Nao foi possivel abrir esta pagina.',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  details.exceptionAsString(),
-                  style: const TextStyle(height: 1.35),
-                ),
-              ],
-            ),
-          ),
-        ),
+  ErrorWidget.builder = (details) => AppErrorView(
+        title: 'Nao foi possivel abrir esta pagina.',
+        message: details.exceptionAsString(),
       );
 
-  try {
-    await Firebase.initializeApp();
+  final startupError = await _initializeServices();
 
-    try {
-      await NotificationService().inicializar();
-    } catch (e) {
-      debugPrint("Erro nas notificacoes: $e");
-    }
-    if (AppConfig.stripePublishableKey.isNotEmpty) {
-      Stripe.publishableKey = AppConfig.stripePublishableKey;
-      Stripe.merchantIdentifier = AppConfig.stripeMerchantIdentifier;
-      Stripe.urlScheme = Uri.parse(AppConfig.stripeReturnUrl).scheme;
-      await Stripe.instance.applySettings();
-    } else {
-      debugPrint(
-          "Stripe publishable key not configured. Pass STRIPE_PUBLISHABLE_KEY with --dart-define.");
-    }
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-    try {
-      await AuthService().inicializar();
-    } catch (e) {
-      debugPrint("Erro no AuthService: $e");
-    }
-  } catch (e) {
-    debugPrint("❌ Erro na Inicialização: $e");
-  }
-
-  debugPrint("🚀 Tudo pronto! A iniciar a interface gráfica...");
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runZonedGuarded(
-    () => runApp(const MyApp()),
+    () => runApp(MyApp(startupError: startupError)),
     (error, stack) {
       debugPrint('Uncaught zone error: $error');
       debugPrintStack(stackTrace: stack);
@@ -89,8 +45,47 @@ void main() async {
   );
 }
 
+Future<Object?> _initializeServices() async {
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    try {
+      await NotificationService().inicializar();
+    } catch (error) {
+      debugPrint('Erro nas notificacoes: $error');
+    }
+
+    if (AppConfig.stripePublishableKey.isNotEmpty) {
+      Stripe.publishableKey = AppConfig.stripePublishableKey;
+      Stripe.merchantIdentifier = AppConfig.stripeMerchantIdentifier;
+      Stripe.urlScheme = Uri.parse(AppConfig.stripeReturnUrl).scheme;
+      await Stripe.instance.applySettings();
+    } else {
+      debugPrint(
+        'Stripe publishable key not configured. Pass STRIPE_PUBLISHABLE_KEY with --dart-define.',
+      );
+    }
+
+    try {
+      await AuthService().inicializar();
+    } catch (error) {
+      debugPrint('Erro no AuthService: $error');
+    }
+
+    debugPrint('Tudo pronto. A iniciar a interface grafica...');
+    return null;
+  } catch (error) {
+    debugPrint('Erro na inicializacao: $error');
+    return error;
+  }
+}
+
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.startupError});
+
+  final Object? startupError;
 
   @override
   Widget build(BuildContext context) {
@@ -161,8 +156,78 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      // ✅ A APP ARRANCA SEMPRE NO SPLASH SCREEN!
-      home: const SplashScreen(),
+      home: startupError == null
+          ? const SplashScreen()
+          : AppErrorView(
+              title: 'Nao foi possivel iniciar a app.',
+              message: startupError.toString(),
+              subtitle:
+                  'A ligacao ao Firebase falhou. Fecha a app e tenta abrir novamente.',
+            ),
+    );
+  }
+}
+
+class AppErrorView extends StatelessWidget {
+  const AppErrorView({
+    super.key,
+    required this.title,
+    required this.message,
+    this.subtitle,
+  });
+
+  final String title;
+  final String message;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFF6F7FB),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                color: Color(0xFFFF8A00),
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFF17212B),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  subtitle!,
+                  style: const TextStyle(
+                    color: Color(0xFF626A73),
+                    fontSize: 16,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              SelectableText(
+                message,
+                style: const TextStyle(
+                  color: Color(0xFF17212B),
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

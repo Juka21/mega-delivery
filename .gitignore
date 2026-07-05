@@ -41,7 +41,7 @@ functions/node_modules/
 # Local secrets / generated Firebase config
 .env
 .env.*
-lib/firebase_options.dart
+!lib/firebase_options.dart
 
 # Symbolication related
 app.*.symbols
