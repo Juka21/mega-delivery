@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'auth_screen.dart';
+import 'complete_profile_screen.dart';
 import 'home_screen.dart';
 
 class AuthWrapper extends StatelessWidget {
@@ -20,6 +21,13 @@ class AuthWrapper extends StatelessWidget {
         final utilizador = snapshot.data ?? AuthService().currentUser;
 
         if (utilizador != null) {
+          if (utilizador.needsProfileCompletion) {
+            debugPrint(
+              'Perfil incompleto para ${utilizador.email}. A completar...',
+            );
+            return CompleteProfileScreen(user: utilizador);
+          }
+
           debugPrint('Utilizador detetado: ${utilizador.email}. A entrar...');
           return const HomeScreen();
         }

@@ -24,6 +24,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _passwordController = TextEditingController();
   final _nomeController = TextEditingController();
   final _telefoneController = TextEditingController();
+  final _idadeController = TextEditingController();
   final _smsCodeController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final AuthService _auth = AuthService();
@@ -51,6 +52,7 @@ class _AuthScreenState extends State<AuthScreen> {
     _passwordController.dispose();
     _nomeController.dispose();
     _telefoneController.dispose();
+    _idadeController.dispose();
     _smsCodeController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -116,6 +118,7 @@ class _AuthScreenState extends State<AuthScreen> {
           password: _passwordController.text.trim(),
           nome: _nomeController.text.trim(),
           telefone: _telefoneController.text.trim(),
+          idade: _auth.validateAge(_idadeController.text),
           acceptedLegal: true,
           phoneCredential: phoneCredential,
         );
@@ -399,6 +402,21 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
             const SizedBox(height: 14),
             _buildPhoneVerificationCard(),
+            const SizedBox(height: 14),
+            _buildField(
+              controller: _idadeController,
+              label: 'Idade',
+              icon: Icons.cake_outlined,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                try {
+                  _auth.validateAge(value ?? '');
+                  return null;
+                } catch (e) {
+                  return e.toString().replaceAll('Exception: ', '');
+                }
+              },
+            ),
             const SizedBox(height: 14),
           ],
           _buildField(

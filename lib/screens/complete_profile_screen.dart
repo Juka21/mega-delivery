@@ -1,16 +1,19 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
 import '../services/auth_service.dart';
 import 'legal_document_screen.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+class CompleteProfileScreen extends StatefulWidget {
+  final AppUser user;
+
+  const CompleteProfileScreen({super.key, required this.user});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<CompleteProfileScreen> createState() => _CompleteProfileScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
   static const Color _orange = Color(0xFFFF8A00);
   static const Color _ink = Color(0xFF17212B);
   static const Color _surface = Color(0xFFF6F7FB);
@@ -20,13 +23,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _ageController = TextEditingController();
   final _smsCodeController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
   final AuthService _auth = AuthService();
 
   bool _isLoading = false;
   bool _isSendingSms = false;
-  bool _obscurePassword = true;
   bool _acceptedLegal = false;
   String? _verificationId;
   PhoneAuthCredential? _autoPhoneCredential;
@@ -35,6 +35,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
+    _nameController.text =
+        widget.user.nome == 'Cliente' ? '' : widget.user.nome.trim();
+    _phoneController.text = widget.user.telefone;
+    if (widget.user.idade != null) {
+      _ageController.text = widget.user.idade.toString();
+    }
     _phoneController.addListener(_resetPhoneVerificationIfChanged);
   }
 
@@ -45,8 +51,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _ageController.dispose();
     _smsCodeController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
@@ -74,11 +78,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _sendSmsCode() async {
-    final phone = _phoneController.text.trim();
     setState(() => _isSendingSms = true);
 
     try {
-      final normalizedPhone = _auth.normalizePhoneNumber(phone);
+      final normalizedPhone =
+          _auth.normalizePhoneNumber(_phoneController.text.trim());
       await _auth.sendPhoneVerificationCode(
         phoneNumber: normalizedPhone,
         verificationCompleted: (credential) {
@@ -120,24 +124,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  Future<void> _handleRegister() async {
+  Future<void> _completeProfile() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_acceptedLegal) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content:
-              Text('Tens de aceitar a politica e os termos para criar conta.'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
+      _showSnack(
+        'Tens de aceitar a politica de privacidade e os termos.',
+        Colors.red,
       );
       return;
     }
 
-    final phoneCredential = _buildPhoneCredential();
-    if (phoneCredential == null) {
+    final credential = _buildPhoneCredential();
+    if (credential == null) {
       _showSnack(
-          'Envia e insere o codigo SMS antes de criar conta.', Colors.red);
+        'Envia e insere o codigo SMS antes de continuar.',
+        Colors.red,
+      );
       return;
     }
 
@@ -145,27 +147,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await _auth.signUp(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+      await _auth.completeProfile(
         nome: _nameController.text.trim(),
         telefone: _phoneController.text.trim(),
         idade: _auth.validateAge(_ageController.text),
+        phoneCredential: credential,
         acceptedLegal: true,
-        phoneCredential: phoneCredential,
       );
-
-      if (mounted) {
-        _showSnack('Conta criada com sucesso.', Colors.green);
-        Navigator.of(context).pop();
-      }
     } catch (e) {
-      if (mounted) {
-        _showSnack(e.toString().replaceAll('Exception: ', ''), Colors.red);
-      }
+      _showSnack(e.toString().replaceAll('Exception: ', ''), Colors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Widget _field({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      textInputAction: TextInputAction.next,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+      ),
+      validator: validator,
+    );
   }
 
   Widget _phoneVerificationCard() {
@@ -233,68 +245,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
         ],
       ),
-    );
-  }
-
-  Widget _buildLogo() {
-    return Container(
-      width: 118,
-      height: 118,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 24,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: ClipOval(
-        child: Image.asset(
-          'assets/images/mega_cachorro_logo.png',
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Icon(
-            Icons.delivery_dining_rounded,
-            color: _orange,
-            size: 54,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _field({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    bool obscure = false,
-    VoidCallback? onToggleObscure,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscure,
-      textInputAction: TextInputAction.next,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon),
-        suffixIcon: onToggleObscure == null
-            ? null
-            : IconButton(
-                onPressed: onToggleObscure,
-                icon: Icon(
-                  obscure
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                ),
-              ),
-      ),
-      validator: validator,
     );
   }
 
@@ -395,27 +345,62 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  Widget _logo() {
+    return Container(
+      width: 104,
+      height: 104,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: Image.asset(
+          'assets/images/mega_cachorro_logo.png',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => const Icon(
+            Icons.delivery_dining_rounded,
+            color: _orange,
+            size: 48,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _surface,
-      appBar: AppBar(
-        title: const Text('Criar conta'),
-        backgroundColor: _surface,
-      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
           child: Column(
             children: [
-              _buildLogo(),
+              _logo(),
               const SizedBox(height: 18),
               const Text(
-                'Mega Delivery',
+                'Completa o perfil',
                 style: TextStyle(
                   color: _ink,
                   fontSize: 28,
                   fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Precisamos destes dados antes de aceitares pedidos e pagamentos.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 24),
@@ -476,34 +461,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           }
                         },
                       ),
-                      const SizedBox(height: 14),
-                      _field(
-                        controller: _emailController,
-                        label: 'Email',
-                        icon: Icons.mail_outline_rounded,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          final text = value?.trim() ?? '';
-                          if (!text.contains('@')) return 'Email invalido';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      _field(
-                        controller: _passwordController,
-                        label: 'Password',
-                        icon: Icons.lock_outline_rounded,
-                        obscure: _obscurePassword,
-                        onToggleObscure: () {
-                          setState(() => _obscurePassword = !_obscurePassword);
-                        },
-                        validator: (value) {
-                          if ((value ?? '').length < 6) {
-                            return 'Minimo 6 caracteres';
-                          }
-                          return null;
-                        },
-                      ),
                       const SizedBox(height: 16),
                       _legalConsent(),
                       const SizedBox(height: 22),
@@ -511,7 +468,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: _isLoading ? null : _handleRegister,
+                          onPressed: _isLoading ? null : _completeProfile,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _orange,
                             foregroundColor: Colors.white,
@@ -529,13 +486,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   ),
                                 )
                               : const Text(
-                                  'Criar conta',
+                                  'Guardar e continuar',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w900,
                                   ),
                                 ),
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: _isLoading ? null : _auth.signOut,
+                        child: const Text('Sair desta conta'),
                       ),
                     ],
                   ),

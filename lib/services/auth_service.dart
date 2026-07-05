@@ -16,6 +16,8 @@ class AppUser {
   final String role;
   final String telefone;
   final String photoURL;
+  final int? idade;
+  final bool phoneVerified;
 
   AppUser({
     required this.uid,
@@ -24,19 +26,39 @@ class AppUser {
     required this.role,
     this.telefone = '',
     this.photoURL = '',
+    this.idade,
+    this.phoneVerified = false,
   });
 
   factory AppUser.fromFirebase(User user, Map<String, dynamic>? data) {
     final email = data?['email']?.toString() ?? user.email ?? '';
+    final idadeValue = data?['idade'];
+    final parsedIdade = idadeValue is num
+        ? idadeValue.toInt()
+        : int.tryParse(idadeValue?.toString() ?? '');
+    final telefone = data?['telefone']?.toString() ?? user.phoneNumber ?? '';
+    final phoneVerified =
+        data?['phoneVerified'] == true || (user.phoneNumber ?? '').isNotEmpty;
+
     return AppUser(
       uid: user.uid,
       email: email,
       nome: data?['nome']?.toString() ?? user.displayName ?? 'Cliente',
       role: data?['role']?.toString() ??
           (AppConfig.isAdminEmail(email) ? 'admin' : 'cliente'),
-      telefone: data?['telefone']?.toString() ?? user.phoneNumber ?? '',
+      telefone: telefone,
       photoURL: data?['photoURL']?.toString() ?? user.photoURL ?? '',
+      idade: parsedIdade,
+      phoneVerified: phoneVerified,
     );
+  }
+
+  bool get needsProfileCompletion {
+    if (role == 'admin') return false;
+    final hasName = nome.trim().isNotEmpty && nome.trim() != 'Cliente';
+    final hasPhone = telefone.trim().isNotEmpty;
+    final hasValidAge = idade != null && idade! >= 18;
+    return !hasName || !hasPhone || !hasValidAge || !phoneVerified;
   }
 
   Map<String, dynamic> toMap() {
@@ -47,6 +69,8 @@ class AppUser {
       'role': role,
       'telefone': telefone,
       'photoURL': photoURL,
+      'idade': idade,
+      'phoneVerified': phoneVerified,
       'updatedAt': FieldValue.serverTimestamp(),
     };
   }
@@ -108,8 +132,10 @@ class AuthService {
       {String nome = 'Cliente',
       String telefone = '',
       String role = 'cliente',
+      int? idade,
       bool acceptedLegal = false,
-      bool phoneVerified = false}) async {
+      bool phoneVerified = false,
+      bool forceUpdate = false}) async {
     final ref = _db.collection('users').doc(user.uid);
     final existing = await ref.get();
     final existingData = existing.data();
@@ -121,25 +147,47 @@ class AuthService {
     final data = {
       'uid': user.uid,
       'email': email,
-      'nome': existingData?['nome'] ?? user.displayName ?? nome,
+      'nome': forceUpdate
+          ? nome
+          : (existingData?['nome'] ?? user.displayName ?? nome),
       'role': resolvedRole,
-      'telefone': existingData?['telefone'] ?? telefone,
-      'photoURL': existingData?['photoURL'] ?? user.photoURL ?? '',
+      'telefone':
+          forceUpdate ? telefone : (existingData?['telefone'] ?? telefone),
+      'photoURL': forceUpdate
+          ? (user.photoURL ?? existingData?['photoURL'] ?? '')
+          : (existingData?['photoURL'] ?? user.photoURL ?? ''),
+      'phoneVerified': existingData?['phoneVerified'] == true ||
+          phoneVerified ||
+          (user.phoneNumber ?? '').isNotEmpty,
       'updatedAt': FieldValue.serverTimestamp(),
     };
+
+    final resolvedIdade = idade ??
+        (existingData?['idade'] is num
+            ? (existingData?['idade'] as num).toInt()
+            : int.tryParse(existingData?['idade']?.toString() ?? ''));
+    if (resolvedIdade != null) {
+      data['idade'] = resolvedIdade;
+    }
 
     if (phoneVerified) {
       data['phoneVerified'] = true;
       data['phoneVerifiedAt'] = FieldValue.serverTimestamp();
     }
 
+    if (idade != null && idade >= 18) {
+      data['ageConfirmed'] = true;
+      data['ageConfirmedAt'] = FieldValue.serverTimestamp();
+    }
+
+    if (acceptedLegal && existingData?['acceptedLegalAt'] == null) {
+      data['acceptedLegalAt'] = FieldValue.serverTimestamp();
+      data['acceptedPrivacyVersion'] = '2026-07-02';
+      data['acceptedTermsVersion'] = '2026-07-02';
+    }
+
     if (!existing.exists) {
       data['createdAt'] = FieldValue.serverTimestamp();
-      if (acceptedLegal) {
-        data['acceptedLegalAt'] = FieldValue.serverTimestamp();
-        data['acceptedPrivacyVersion'] = '2026-07-02';
-        data['acceptedTermsVersion'] = '2026-07-02';
-      }
     }
 
     await ref.set(data, SetOptions(merge: true));
@@ -173,8 +221,10 @@ class AuthService {
       required String password,
       String nome = 'Cliente',
       String telefone = '',
+      required int idade,
       bool acceptedLegal = false,
       PhoneAuthCredential? phoneCredential}) async {
+    validateAge(idade.toString());
     final normalizedPhone = normalizePhoneNumber(telefone);
     if (phoneCredential == null) {
       throw Exception(
@@ -204,8 +254,10 @@ class AuthService {
         user,
         nome: nome,
         telefone: normalizedPhone,
+        idade: idade,
         acceptedLegal: acceptedLegal,
         phoneVerified: true,
+        forceUpdate: true,
       );
       await _syncCurrentUser(user);
     } on FirebaseAuthException catch (e) {
@@ -262,6 +314,20 @@ class AuthService {
     throw Exception('Numero invalido. Usa um telemovel portugues valido.');
   }
 
+  int validateAge(String ageText) {
+    final age = int.tryParse(ageText.trim());
+    if (age == null) {
+      throw Exception('Insere a tua idade.');
+    }
+    if (age < 18) {
+      throw Exception('Tens de ter pelo menos 18 anos para criar conta.');
+    }
+    if (age > 120) {
+      throw Exception('Confirma a idade inserida.');
+    }
+    return age;
+  }
+
   Future<void> sendPhoneVerificationCode({
     required String phoneNumber,
     required void Function(String verificationId, int? resendToken) codeSent,
@@ -302,6 +368,71 @@ class AuthService {
         return 'Limite de SMS atingido. Tenta novamente mais tarde.';
       default:
         return error.message ?? 'Nao foi possivel enviar o SMS.';
+    }
+  }
+
+  Future<void> completeProfile({
+    required String nome,
+    required String telefone,
+    required int idade,
+    required PhoneAuthCredential phoneCredential,
+    bool acceptedLegal = false,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('Sessao expirada. Entra novamente.');
+    }
+
+    final cleanName = nome.trim();
+    if (cleanName.isEmpty) {
+      throw Exception('Insere o teu nome.');
+    }
+
+    validateAge(idade.toString());
+    final normalizedPhone = normalizePhoneNumber(telefone);
+
+    final existingPhone = await _db
+        .collection('users')
+        .where('telefone', isEqualTo: normalizedPhone)
+        .limit(2)
+        .get();
+    final phoneUsedByOther =
+        existingPhone.docs.any((doc) => doc.id != user.uid);
+    if (phoneUsedByOther) {
+      throw Exception('Este telemovel ja esta associado a uma conta.');
+    }
+
+    try {
+      final alreadyLinked = user.phoneNumber == normalizedPhone ||
+          user.providerData.any((provider) =>
+              provider.providerId == 'phone' &&
+              provider.phoneNumber == normalizedPhone);
+      if (!alreadyLinked) {
+        await user.linkWithCredential(phoneCredential);
+      }
+      await user.updateDisplayName(cleanName);
+      await user.reload();
+      final refreshedUser = _auth.currentUser ?? user;
+      await _saveUserProfile(
+        refreshedUser,
+        nome: cleanName,
+        telefone: normalizedPhone,
+        idade: idade,
+        acceptedLegal: acceptedLegal,
+        phoneVerified: true,
+        forceUpdate: true,
+      );
+      await _syncCurrentUser(refreshedUser);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'credential-already-in-use' ||
+          e.code == 'provider-already-linked') {
+        throw Exception('Este telemovel ja esta associado a uma conta.');
+      }
+      if (e.code == 'invalid-verification-code' ||
+          e.code == 'invalid-credential') {
+        throw Exception('Codigo SMS invalido.');
+      }
+      throw Exception(e.message ?? 'Nao foi possivel completar o perfil.');
     }
   }
 
