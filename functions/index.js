@@ -54,7 +54,7 @@ exports.createStripePaymentSheet = onCall(
         customer: customer.id,
         receipt_email: request.auth.token.email,
         metadata: { uid: request.auth.uid },
-        payment_method_types: ["card", "multibanco"],
+        payment_method_types: ["card"],
       });
 
       return {

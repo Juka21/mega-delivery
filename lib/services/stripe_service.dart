@@ -37,8 +37,8 @@ class StripeService {
           customerEphemeralKeySecret: ephemeralKey,
           merchantDisplayName: 'Mega Delivery',
           returnURL: AppConfig.stripeReturnUrl,
-          allowsDelayedPaymentMethods: true,
-          paymentMethodOrder: const ['card', 'multibanco'],
+          allowsDelayedPaymentMethods: false,
+          paymentMethodOrder: const ['card'],
           billingDetails: const BillingDetails(
             address: Address(
               country: 'PT',
