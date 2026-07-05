@@ -45,6 +45,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Permite tirar fotografias para atualizar imagens de perfil, produtos ou comprovativos dentro da app.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Permite usar a localização para confirmar moradas, calcular entregas e acompanhar pedidos quando necessário.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Permite calcular e confirmar a morada de entrega enquanto usa a app.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
