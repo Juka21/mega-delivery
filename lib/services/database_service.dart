@@ -237,10 +237,12 @@ class DatabaseService {
       if (itemCart['pratoId'] != prato.id) return false;
       if ((itemCart['nota'] ?? '') != (notaCliente ?? '')) return false;
       if (!listasIguais(
-          itemCart['ingredientesRemovidos'] ?? [], ingredientesRemovidos))
+          itemCart['ingredientesRemovidos'] ?? [], ingredientesRemovidos)) {
         return false;
-      if (!listasIguais(itemCart['molhos'] ?? [], molhosSelecionados))
+      }
+      if (!listasIguais(itemCart['molhos'] ?? [], molhosSelecionados)) {
         return false;
+      }
       if (!extrasIguais(itemCart['extras'] ?? [], extras)) return false;
       return true;
     });
@@ -928,8 +930,13 @@ class DatabaseService {
   Future<bool> updateUserProfile(
       {required String uid, required Map<String, dynamic> dados}) async {
     try {
+      final safeDados = Map<String, dynamic>.from(dados)
+        ..remove('telefone')
+        ..remove('phoneVerified')
+        ..remove('phoneVerifiedAt');
+
       await _db.collection('users').doc(uid).set({
-        ...dados,
+        ...safeDados,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       return true;

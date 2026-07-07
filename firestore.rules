@@ -22,7 +22,20 @@ service cloud.firestore {
 
     function keepsProtectedUserFields() {
       return !request.resource.data.diff(resource.data).affectedKeys()
-        .hasAny(['uid', 'email', 'role', 'createdAt']);
+        .hasAny(['uid', 'email', 'role', 'createdAt'])
+        && keepsLockedPhoneFields();
+    }
+
+    function hasExistingPhone() {
+      return ('telefone' in resource.data)
+        && resource.data.telefone is string
+        && resource.data.telefone.size() > 0;
+    }
+
+    function keepsLockedPhoneFields() {
+      return !hasExistingPhone()
+        || !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['telefone', 'phoneVerified', 'phoneVerifiedAt']);
     }
 
     match /users/{userId} {
@@ -34,7 +47,12 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isAdmin();
       allow update: if isAdmin()
         || (isOwner(userId) && keepsProtectedUserFields())
-        || (isOwner(userId) && isBootstrapAdminEmail() && request.resource.data.role == 'admin');
+        || (
+          isOwner(userId)
+          && isBootstrapAdminEmail()
+          && request.resource.data.role == 'admin'
+          && keepsLockedPhoneFields()
+        );
       allow delete: if isAdmin();
     }
 

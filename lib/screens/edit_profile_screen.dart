@@ -1,6 +1,6 @@
-import 'dart:io'; 
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; 
+import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 
@@ -14,7 +14,7 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final DatabaseService db = DatabaseService();
-  
+
   // Pega o utilizador atual do Firebase Auth/Firestore.
   final AppUser? user = AuthService().currentUser;
   final ImagePicker _picker = ImagePicker();
@@ -23,9 +23,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final TextEditingController _phoneCtrl = TextEditingController();
   final TextEditingController _emailCtrl = TextEditingController();
 
-  File? _imageFile; 
+  File? _imageFile;
   bool _isLoading = false;
-  String? _currentPhotoUrl; 
+  String? _currentPhotoUrl;
 
   @override
   void initState() {
@@ -39,35 +39,41 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _emailCtrl.text = user!.email;
       _currentPhotoUrl = user!.photoURL;
       // Assume que o teu AppUser agora tem o campo telefone
-      _phoneCtrl.text = user!.telefone; 
+      _phoneCtrl.text = user!.telefone;
     }
   }
 
   Future<void> _pickImage(ImageSource source) async {
     try {
-      final XFile? pickedFile = await _picker.pickImage(source: source, imageQuality: 50);
+      final XFile? pickedFile =
+          await _picker.pickImage(source: source, imageQuality: 50);
       if (pickedFile != null) {
         setState(() {
           _imageFile = File(pickedFile.path);
         });
       }
     } catch (e) {
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro ao escolher imagem: $e")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Erro ao escolher imagem: $e")));
+      }
     }
-    if(mounted) Navigator.pop(context); 
+    if (mounted) Navigator.pop(context);
   }
 
   void _showImageSourceActionSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(25))),
       builder: (BuildContext context) {
         return Container(
           padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text("Alterar Foto", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const Text("Alterar Foto",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
               const SizedBox(height: 20),
               ListTile(
                 leading: const Icon(Icons.camera_alt, color: Colors.blue),
@@ -100,27 +106,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         finalPhotoUrl = await db.uploadImage(_imageFile!);
       }
 
-      // Atualiza os dados no Firestore.
+      // Atualiza os dados no Firestore. O telemovel verificado fica fixo.
       final sucesso = await db.updateUserProfile(
         uid: user!.uid,
         dados: {
           'nome': _nameCtrl.text.trim(),
-          'telefone': _phoneCtrl.text.trim(),
           'photoURL': finalPhotoUrl,
         },
       );
 
       if (sucesso && mounted) {
         // Atualiza os dados locais no AuthService para o resto da app saber
-        await AuthService().refreshUser(); 
-        
+        await AuthService().refreshUser();
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Perfil atualizado com sucesso! ✅")),
         );
-        Navigator.pop(context); 
+        Navigator.pop(context);
       }
     } catch (e) {
-      if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro: $e")));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Erro: $e")));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -130,11 +139,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     ImageProvider bgImage;
     if (_imageFile != null) {
-      bgImage = FileImage(_imageFile!); 
+      bgImage = FileImage(_imageFile!);
     } else if (_currentPhotoUrl != null && _currentPhotoUrl!.isNotEmpty) {
-      bgImage = NetworkImage(_currentPhotoUrl!); 
+      bgImage = NetworkImage(_currentPhotoUrl!);
     } else {
-      bgImage = const AssetImage('assets/icon/icon.png'); 
+      bgImage = const AssetImage('assets/icon/icon.png');
     }
 
     return GestureDetector(
@@ -142,11 +151,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Scaffold(
         backgroundColor: const Color(0xFFF8F9FD),
         appBar: AppBar(
-          title: const Text("Editar Perfil", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
+          title: const Text("Editar Perfil",
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.black87)),
           centerTitle: true,
           backgroundColor: Colors.white,
           elevation: 0,
-          leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black), onPressed: () => Navigator.pop(context)),
+          leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+              onPressed: () => Navigator.pop(context)),
         ),
         body: Stack(
           children: [
@@ -158,11 +171,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   children: [
                     _buildAvatarSection(bgImage),
                     const SizedBox(height: 40),
-                    _buildTextField(controller: _nameCtrl, label: "Nome Completo", icon: Icons.person_outline),
+                    _buildTextField(
+                        controller: _nameCtrl,
+                        label: "Nome Completo",
+                        icon: Icons.person_outline),
                     const SizedBox(height: 20),
-                    _buildTextField(controller: _phoneCtrl, label: "Telemóvel", icon: Icons.phone_android, keyboardType: TextInputType.phone),
+                    _buildLockedPhoneField(),
                     const SizedBox(height: 20),
-                    _buildTextField(controller: _emailCtrl, label: "Email (Fixo)", icon: Icons.email_outlined, isReadOnly: true),
+                    _buildTextField(
+                        controller: _emailCtrl,
+                        label: "Email (Fixo)",
+                        icon: Icons.email_outlined,
+                        isReadOnly: true),
                     const SizedBox(height: 40),
                     _buildSaveButton(),
                   ],
@@ -188,11 +208,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               backgroundColor: Colors.grey[200],
             ),
             Positioned(
-              bottom: 0, right: 0,
+              bottom: 0,
+              right: 0,
               child: Container(
                 padding: const EdgeInsets.all(10),
-                decoration: const BoxDecoration(color: Colors.blueAccent, shape: BoxShape.circle),
-                child: const Icon(Icons.camera_alt, color: Colors.white, size: 22),
+                decoration: const BoxDecoration(
+                    color: Colors.blueAccent, shape: BoxShape.circle),
+                child:
+                    const Icon(Icons.camera_alt, color: Colors.white, size: 22),
               ),
             )
           ],
@@ -206,28 +229,78 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       width: double.infinity,
       height: 55,
       child: ElevatedButton(
-        style: ElevatedButton.styleFrom(backgroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+        style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.black,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15))),
         onPressed: _isLoading ? null : _saveProfile,
-        child: const Text("GUARDAR ALTERAÇÕES", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        child: const Text("GUARDAR ALTERAÇÕES",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
     );
   }
 
   Widget _buildLoadingOverlay() {
     return Container(
-      color: Colors.black.withOpacity(0.3),
-      child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+      color: Colors.black.withValues(alpha: 0.3),
+      child:
+          const Center(child: CircularProgressIndicator(color: Colors.white)),
     );
   }
 
-  Widget _buildTextField({required TextEditingController controller, required String label, required IconData icon, bool isReadOnly = false, TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildTextField(
+      {required TextEditingController controller,
+      required String label,
+      required IconData icon,
+      bool isReadOnly = false,
+      TextInputType keyboardType = TextInputType.text}) {
     return TextFormField(
-      controller: controller, readOnly: isReadOnly, keyboardType: keyboardType,
+      controller: controller,
+      readOnly: isReadOnly,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
-        labelText: label, prefixIcon: Icon(icon, color: isReadOnly ? Colors.grey : Colors.blueAccent),
-        filled: true, fillColor: isReadOnly ? Colors.grey[100] : Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+        labelText: label,
+        prefixIcon:
+            Icon(icon, color: isReadOnly ? Colors.grey : Colors.blueAccent),
+        filled: true,
+        fillColor: isReadOnly ? Colors.grey[100] : Colors.white,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide.none),
       ),
+    );
+  }
+
+  Widget _buildLockedPhoneField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildTextField(
+          controller: _phoneCtrl,
+          label: "Telemovel verificado",
+          icon: Icons.verified_user_outlined,
+          isReadOnly: true,
+          keyboardType: TextInputType.phone,
+        ),
+        const SizedBox(height: 8),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.lock_outline, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                "Para alterar o telemovel, abre um pedido no suporte.",
+                style: TextStyle(
+                  color: Colors.grey[700],
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
