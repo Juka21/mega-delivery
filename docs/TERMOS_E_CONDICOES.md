@@ -4,19 +4,18 @@ Ultima atualizacao: 2 de julho de 2026
 
 Estes Termos e Condicoes regulam a utilizacao da aplicacao Mega Cachorro / Mega Delivery.
 
-Este documento e uma base operacional e deve ser revisto com os dados legais reais da empresa antes da publicacao.
 
 ## 1. Identificacao do operador
 
-Operador: [NOME LEGAL DA EMPRESA OU EMPRESARIO EM NOME INDIVIDUAL]
+Operador: Elsa Gomes & Marco Gomes, Lda
 
-NIF: [NIF]
+NIF: 515228869
 
-Morada: [MORADA FISCAL OU COMERCIAL]
+Morada: Av. Dr. José Henriques Vareda 22, 2430-307 Marinha Grande
 
-Email: [EMAIL DE SUPORTE]
+Email: Juka77@outlook.pt
 
-Telefone: [TELEFONE]
+Telefone: 244568054
 
 ## 2. Objeto
 
@@ -144,4 +143,4 @@ Em caso de litigio de consumo, o consumidor pode recorrer ao livro de reclamacoe
 
 Para suporte, reclamacoes ou pedidos relacionados com a app:
 
-[EMAIL DE SUPORTE]
+Juka77@outlook.pt

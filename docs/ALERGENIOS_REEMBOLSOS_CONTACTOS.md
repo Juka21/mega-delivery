@@ -7,15 +7,15 @@ Este documento complementa a Política de Privacidade e os Termos e Condições 
 
 ## 1. Contactos oficiais
 
-Nome comercial: Mega Cachorro / Mega Delivery
+Nome comercial: Mega Cachorro
 
-Operador legal: [NOME LEGAL DA EMPRESA OU EMPRESARIO EM NOME INDIVIDUAL]
+Operador legal: Elsa Gomes & Marco Gomes, Lda
 
 NIF: 515228869
 
 Morada: Av. Dr. José Henriques Vareda 22, 2430-307 Marinha Grande
 
-Telefone: 916996992
+Telefone: 244568054
 
 Email geral: Juka77@outlook.pt
 

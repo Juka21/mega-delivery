@@ -4,19 +4,18 @@ Ultima atualizacao: 2 de julho de 2026
 
 Esta Politica de Privacidade explica como a aplicacao Mega Cachorro / Mega Delivery trata dados pessoais dos seus utilizadores.
 
-Este documento e uma base operacional e deve ser revisto com os dados legais reais da empresa antes da publicacao.
 
 ## 1. Responsavel pelo tratamento
 
-Responsavel: [NOME LEGAL DA EMPRESA OU EMPRESARIO EM NOME INDIVIDUAL]
+Responsavel: Elsa Gomes & Marco Gomes, Lda
 
-NIF: [NIF]
+NIF: 515228869
 
-Morada: [MORADA FISCAL OU COMERCIAL]
+Morada: Av. Dr. José Henriques Vareda 22, 2430-307 Marinha Grande
 
-Email de contacto: [EMAIL DE SUPORTE/PRIVACIDADE]
+Email de contacto: Juka77@outlook.pt
 
-Telefone: [TELEFONE]
+Telefone: 244568054
 
 ## 2. Dados pessoais recolhidos
 
@@ -38,7 +37,7 @@ Podemos recolher e tratar os seguintes dados:
 Os dados sao tratados para:
 
 - Criar e gerir a conta do utilizador.
-- Permitir o inicio de sessao por email, Google ou Apple.
+- Permitir o inicio de sessao por email, Google ou Apple e número de telemóvel.
 - Receber, preparar, entregar e acompanhar pedidos.
 - Calcular disponibilidade de entrega, distancia e custo de entrega.
 - Processar pagamentos.
@@ -128,7 +127,7 @@ Nos termos do RGPD, o utilizador pode, quando aplicavel, exercer os seguintes di
 - Retirada de consentimento, quando o tratamento depender de consentimento.
 - Apresentacao de reclamacao junto da Comissao Nacional de Protecao de Dados.
 
-Os pedidos devem ser enviados para [EMAIL DE SUPORTE/PRIVACIDADE].
+Os pedidos devem ser enviados para Juka77@outlook.pt.
 
 Podera ser necessario confirmar a identidade do requerente antes de responder ao pedido.
 
@@ -158,4 +157,4 @@ Quando a alteracao for relevante, poderemos informar os utilizadores atraves da 
 
 Para questoes sobre privacidade ou protecao de dados, contacte:
 
-[EMAIL DE SUPORTE/PRIVACIDADE]
+Juka77@outlook.pt
