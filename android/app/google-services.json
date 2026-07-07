@@ -39,10 +39,10 @@
               "client_type": 3
             },
             {
-              "client_id": "158452862906-cu077il8n0gdb56rd9386nsicuvi9big.apps.googleusercontent.com",
+              "client_id": "158452862906-a6nfc50uv5mf3i7gcr7r3vob9eu64n8l.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.mycompany.megadelivey"
+                "bundle_id": "pt.megacachorro.megadelivery"
               }
             }
           ]
