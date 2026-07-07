@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/pedido.dart';
 import '../services/database_service.dart';
 import 'chat_screen.dart';
+import 'refund_requests_screen.dart';
 import 'tracking_screen.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
@@ -227,6 +228,35 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
                   icon: const Icon(Icons.star_rounded),
                   label: const Text(
                     "AVALIAR PEDIDO",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+            ],
+
+            if (widget.pedido.status == 'Recebido pelo Cliente' ||
+                widget.pedido.status == 'ConcluÃ­do' ||
+                widget.pedido.status == 'Cancelado') ...[
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                    side: BorderSide(color: Colors.redAccent.withOpacity(0.35)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  onPressed: () => const RefundRequestsScreen()
+                      .showRefundSheet(context, widget.pedido),
+                  icon: const Icon(Icons.undo_rounded),
+                  label: const Text(
+                    "PEDIR REEMBOLSO",
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.5,

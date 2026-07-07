@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../services/database_service.dart';
@@ -1029,6 +1030,27 @@ class _BetterCompletedOrdersScreenState
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF17212B),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  onPressed: pedidos.isEmpty
+                      ? null
+                      : () => _copyCsv(context, db, pedidos),
+                  icon: const Icon(Icons.table_view_rounded),
+                  label: const Text(
+                    'Copiar CSV filtrado',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
@@ -1080,6 +1102,21 @@ class _BetterCompletedOrdersScreenState
             ],
           );
         },
+      ),
+    );
+  }
+
+  Future<void> _copyCsv(
+    BuildContext context,
+    DatabaseService db,
+    List<Map<String, dynamic>> pedidos,
+  ) async {
+    await Clipboard.setData(ClipboardData(text: db.buildOrdersCsv(pedidos)));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('CSV copiado. Podes colar no Excel ou Google Sheets.'),
+        backgroundColor: Colors.green,
       ),
     );
   }

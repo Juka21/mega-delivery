@@ -146,11 +146,16 @@ class DatabaseService {
   }
 
   Future<void> addPrato(Map<String, dynamic> dados) async {
-    await _db.collection('menu').add({
+    final ref = await _db.collection('menu').add({
       ...dados,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    await addAuditLog(
+      action: 'Produto criado',
+      details: dados['nome']?.toString() ?? ref.id,
+      targetId: ref.id,
+    );
   }
 
   Future<void> updatePrato(String id, Map<String, dynamic> dados) async {
@@ -158,10 +163,20 @@ class DatabaseService {
       ...dados,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    await addAuditLog(
+      action: 'Produto atualizado',
+      details: dados['nome']?.toString() ?? id,
+      targetId: id,
+    );
   }
 
   Future<void> deletePrato(String id) async {
     await _db.collection('menu').doc(id).delete();
+    await addAuditLog(
+      action: 'Produto apagado',
+      details: id,
+      targetId: id,
+    );
   }
 
   Future<int> importarCardapioPadrao() async {
@@ -320,6 +335,12 @@ class DatabaseService {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+      await addAuditLog(
+        action: 'Pedido criado',
+        details:
+            '${pedidoData['cliente'] ?? pedidoData['userId']} - ${(pedidoData['total'] as num?)?.toStringAsFixed(2) ?? ''} EUR',
+        targetId: pedidoData['id']?.toString(),
+      );
       return true;
     } catch (_) {
       return false;
@@ -563,23 +584,38 @@ class DatabaseService {
   }
 
   Future<void> addDriver(Map<String, dynamic> data) async {
-    await _db.collection('drivers').add({
+    final ref = await _db.collection('drivers').add({
       ...data,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+    await addAuditLog(
+      action: 'Estafeta criado',
+      details: data['nome']?.toString() ?? ref.id,
+      targetId: ref.id,
+    );
   }
 
   Future<void> deleteDriver(String id) async {
     await _db.collection('drivers').doc(id).delete();
+    await addAuditLog(
+      action: 'Estafeta apagado',
+      details: id,
+      targetId: id,
+    );
   }
 
   Future<void> addNoticia(Map<String, dynamic> data) async {
-    await _db.collection('noticias').add({
+    final ref = await _db.collection('noticias').add({
       ...data,
       'createdAt': FieldValue.serverTimestamp(),
       'dataHora': DateTime.now().toIso8601String(),
     });
+    await addAuditLog(
+      action: 'Noticia criada',
+      details: data['titulo']?.toString() ?? ref.id,
+      targetId: ref.id,
+    );
   }
 
   Future<void> updateNoticia(String id, Map<String, dynamic> data) async {
@@ -587,10 +623,20 @@ class DatabaseService {
       ...data,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    await addAuditLog(
+      action: 'Noticia atualizada',
+      details: data['titulo']?.toString() ?? id,
+      targetId: id,
+    );
   }
 
   Future<void> deleteNoticia(String id) async {
     await _db.collection('noticias').doc(id).delete();
+    await addAuditLog(
+      action: 'Noticia apagada',
+      details: id,
+      targetId: id,
+    );
   }
 
   Future<void> updateDriverLocation(
@@ -665,6 +711,11 @@ class DatabaseService {
           data,
           SetOptions(merge: true),
         );
+    await addAuditLog(
+      action: 'Estado do pedido alterado',
+      details: '$pedidoId -> $novoEstado',
+      targetId: pedidoId,
+    );
   }
 
   Future<void> rateOrder({
@@ -712,6 +763,247 @@ class DatabaseService {
           : closedMessage,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+    await addAuditLog(
+      action: isOpen ? 'Loja aberta' : 'Loja fechada',
+      details: closedMessage,
+    );
+  }
+
+  Stream<List<Map<String, dynamic>>> getFavoritePratosStream() {
+    final user = AuthService().currentUser;
+    if (user == null) return Stream.value([]);
+
+    return _db
+        .collection('user_favorites')
+        .doc(user.uid)
+        .collection('items')
+        .snapshots()
+        .map((snapshot) {
+      final items = snapshot.docs.map((doc) => _withId(doc)).toList();
+      items.sort((a, b) => (a['nome'] ?? '').toString().compareTo(
+            (b['nome'] ?? '').toString(),
+          ));
+      return items;
+    });
+  }
+
+  Stream<bool> isFavoritePratoStream(String pratoId) {
+    final user = AuthService().currentUser;
+    if (user == null || pratoId.isEmpty) return Stream.value(false);
+
+    return _db
+        .collection('user_favorites')
+        .doc(user.uid)
+        .collection('items')
+        .doc(pratoId)
+        .snapshots()
+        .map((doc) => doc.exists);
+  }
+
+  Future<void> toggleFavoritePrato(Prato prato, bool shouldFavorite) async {
+    final user = AuthService().currentUser;
+    if (user == null) throw Exception('Inicia sessao novamente.');
+
+    final ref = _db
+        .collection('user_favorites')
+        .doc(user.uid)
+        .collection('items')
+        .doc(prato.id);
+
+    if (shouldFavorite) {
+      await ref.set({
+        ...prato.toMap(),
+        'pratoId': prato.id,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } else {
+      await ref.delete();
+    }
+  }
+
+  Future<String> requestRefund({
+    required Pedido pedido,
+    required String reason,
+  }) async {
+    final user = AuthService().currentUser;
+    if (user == null) throw Exception('Inicia sessao novamente.');
+
+    final ref = _db.collection('refund_requests').doc();
+    await ref.set({
+      'orderId': pedido.id,
+      'userId': user.uid,
+      'userName': user.nome,
+      'userEmail': user.email,
+      'orderTotal': pedido.total,
+      'reason': reason.trim(),
+      'status': 'Pendente',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await addAuditLog(
+      action: 'Pedido de reembolso',
+      details: 'Pedido ${pedido.id} - ${pedido.total.toStringAsFixed(2)} EUR',
+      targetId: pedido.id,
+    );
+    return ref.id;
+  }
+
+  Stream<List<Map<String, dynamic>>> getRefundRequestsStream({
+    required bool isAdmin,
+  }) {
+    final user = AuthService().currentUser;
+    final stream = isAdmin || user == null
+        ? _db.collection('refund_requests').snapshots()
+        : _db
+            .collection('refund_requests')
+            .where('userId', isEqualTo: user.uid)
+            .snapshots();
+
+    return stream.map((snapshot) {
+      final requests = snapshot.docs.map((doc) {
+        final data = _withId(doc);
+        data['createdAtText'] = _dateToIso(data['createdAt']);
+        return data;
+      }).toList();
+      requests.sort((a, b) => _dateToIso(b['createdAt']).compareTo(
+            _dateToIso(a['createdAt']),
+          ));
+      return requests;
+    });
+  }
+
+  Future<void> updateRefundRequestStatus(
+    String requestId,
+    String status,
+  ) async {
+    await _db.collection('refund_requests').doc(requestId).set({
+      'status': status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    await addAuditLog(
+      action: 'Reembolso atualizado',
+      details: '$requestId -> $status',
+      targetId: requestId,
+    );
+  }
+
+  Future<void> addAuditLog({
+    required String action,
+    String details = '',
+    String? targetId,
+  }) async {
+    final user = AuthService().currentUser;
+    await _db.collection('audit_logs').add({
+      'action': action,
+      'details': details,
+      'targetId': targetId,
+      'actorId': user?.uid,
+      'actorName': user?.nome ?? user?.email ?? 'Sistema',
+      'actorRole': user?.role ?? 'sistema',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Stream<List<Map<String, dynamic>>> get auditLogsStream {
+    return _db
+        .collection('audit_logs')
+        .orderBy('createdAt', descending: true)
+        .limit(100)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = _withId(doc);
+        data['createdAtText'] = _dateToIso(data['createdAt']);
+        return data;
+      }).toList();
+    });
+  }
+
+  Future<Map<String, dynamic>> getAdminDashboardSummary() async {
+    final orders = await getAllOrders();
+    final now = DateTime.now();
+    final todayOrders = orders
+        .where(_isCurrentUserOrder)
+        .where((order) => _isSameLocalDay(_localOrderDate(order), now))
+        .toList();
+    final activeOrders = orders.where((order) {
+      final status = order['status']?.toString() ?? '';
+      return _isCurrentUserOrder(order) &&
+          status != 'ConcluÃ­do' &&
+          status != 'Cancelado';
+    }).toList();
+    final completedToday = todayOrders
+        .where((order) => order['status']?.toString() == 'ConcluÃ­do')
+        .toList();
+    final ratings = orders
+        .map((order) => (order['rating'] as num?)?.toDouble())
+        .whereType<double>()
+        .toList();
+    final refunds = await _db
+        .collection('refund_requests')
+        .where('status', isEqualTo: 'Pendente')
+        .get();
+    final tickets = await _db
+        .collection('support_tickets')
+        .where('status', isEqualTo: 'Aberto')
+        .get();
+
+    double sumTotal(Iterable<Map<String, dynamic>> source) {
+      return source.fold<double>(
+        0,
+        (total, order) => total + ((order['total'] as num?)?.toDouble() ?? 0),
+      );
+    }
+
+    return {
+      'todayTotal': sumTotal(completedToday),
+      'todayOrders': todayOrders.length,
+      'activeOrders': activeOrders.length,
+      'pendingRefunds': refunds.docs.length,
+      'openTickets': tickets.docs.length,
+      'averageRating': ratings.isEmpty
+          ? 0.0
+          : ratings.reduce((a, b) => a + b) / ratings.length,
+      'ratingCount': ratings.length,
+    };
+  }
+
+  String buildOrdersCsv(List<Map<String, dynamic>> orders) {
+    String cell(dynamic value) {
+      final text = (value ?? '').toString().replaceAll('"', '""');
+      return '"$text"';
+    }
+
+    final rows = <List<dynamic>>[
+      [
+        'id',
+        'data',
+        'cliente',
+        'telefone',
+        'estado',
+        'entrega',
+        'pagamento',
+        'total',
+        'rating',
+        'comentario'
+      ],
+      ...orders.map((order) => [
+            order['id'] ?? order['_id'] ?? '',
+            _dateToIso(order['dataHora'] ?? order['createdAt']),
+            order['cliente'] ?? order['nomeCliente'] ?? '',
+            order['telefoneCliente'] ?? '',
+            order['status'] ?? order['estado'] ?? '',
+            order['metodoEntrega'] ?? '',
+            order['metodoPagamento'] ?? '',
+            ((order['total'] as num?)?.toDouble() ?? 0).toStringAsFixed(2),
+            order['rating'] ?? '',
+            order['ratingComment'] ?? '',
+          ]),
+    ];
+
+    return rows.map((row) => row.map(cell).join(',')).join('\n');
   }
 
   Future<Map<String, dynamic>> exportCurrentUserData() async {

@@ -589,28 +589,37 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(10),
               child: Row(
                 children: [
-                  Hero(
-                    tag: p.id,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.network(
-                        p.imageUrl,
-                        width: 92,
-                        height: 92,
-                        fit: BoxFit.cover,
-                        cacheWidth: 184,
-                        cacheHeight: 184,
-                        filterQuality: FilterQuality.low,
-                        gaplessPlayback: true,
-                        errorBuilder: (_, __, ___) => Container(
-                          width: 92,
-                          height: 92,
-                          color: const Color(0xFFEDEFF4),
-                          child: const Icon(Icons.fastfood_rounded,
-                              color: Colors.grey),
+                  Stack(
+                    children: [
+                      Hero(
+                        tag: p.id,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.network(
+                            p.imageUrl,
+                            width: 92,
+                            height: 92,
+                            fit: BoxFit.cover,
+                            cacheWidth: 184,
+                            cacheHeight: 184,
+                            filterQuality: FilterQuality.low,
+                            gaplessPlayback: true,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 92,
+                              height: 92,
+                              color: const Color(0xFFEDEFF4),
+                              child: const Icon(Icons.fastfood_rounded,
+                                  color: Colors.grey),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      Positioned(
+                        right: 6,
+                        top: 6,
+                        child: _buildFavoriteButton(p),
+                      ),
+                    ],
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -661,6 +670,50 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFavoriteButton(Prato prato) {
+    if (AuthService().currentUser == null) return const SizedBox.shrink();
+
+    return StreamBuilder<bool>(
+      stream: db.isFavoritePratoStream(prato.id),
+      builder: (context, snapshot) {
+        final isFavorite = snapshot.data ?? false;
+        return GestureDetector(
+          onTap: () async {
+            try {
+              await db.toggleFavoritePrato(prato, !isFavorite);
+            } catch (_) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Inicia sessao para guardar.')),
+              );
+            }
+          },
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                ),
+              ],
+            ),
+            child: Icon(
+              isFavorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+              color: isFavorite ? _brand : _ink,
+              size: 20,
+            ),
+          ),
+        );
+      },
     );
   }
 

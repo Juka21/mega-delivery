@@ -5,7 +5,9 @@ import '../services/auth_service.dart';
 import 'admin_dashboard_screen.dart';
 import 'address_screen.dart';
 import 'edit_profile_screen.dart';
+import 'favorites_screen.dart';
 import 'legal_document_screen.dart';
+import 'refund_requests_screen.dart';
 import 'support_tickets_screen.dart';
 import '../services/database_service.dart';
 
@@ -68,6 +70,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 25),
                       _buildSectionTitle("A MINHA CONTA"),
                       _buildMenuCard([
+                        _buildMenuItem(Icons.favorite_rounded, Colors.pink,
+                            "Favoritos", "Produtos guardados", () {
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const FavoritesScreen()));
+                        }),
+                        _buildDivider(),
                         _buildMenuItem(
                             Icons.location_on_rounded,
                             Colors.deepOrange,
@@ -94,6 +104,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             "Exportar os meus dados",
                             "Ver e copiar dados guardados", () {
                           _exportUserData();
+                        }),
+                        _buildDivider(),
+                        _buildMenuItem(Icons.undo_rounded, Colors.redAccent,
+                            "Reembolsos", "Pedidos e estado", () {
+                          Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      const RefundRequestsScreen()));
                         }),
                       ]),
                       const SizedBox(height: 25),
