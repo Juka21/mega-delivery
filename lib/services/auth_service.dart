@@ -231,15 +231,6 @@ class AuthService {
           'Confirma o codigo enviado por SMS antes de criar conta.');
     }
 
-    final existingPhone = await _db
-        .collection('users')
-        .where('telefone', isEqualTo: normalizedPhone)
-        .limit(1)
-        .get();
-    if (existingPhone.docs.isNotEmpty) {
-      throw Exception('Este telemovel ja esta associado a uma conta.');
-    }
-
     User? createdUser;
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -390,17 +381,6 @@ class AuthService {
 
     validateAge(idade.toString());
     final normalizedPhone = normalizePhoneNumber(telefone);
-
-    final existingPhone = await _db
-        .collection('users')
-        .where('telefone', isEqualTo: normalizedPhone)
-        .limit(2)
-        .get();
-    final phoneUsedByOther =
-        existingPhone.docs.any((doc) => doc.id != user.uid);
-    if (phoneUsedByOther) {
-      throw Exception('Este telemovel ja esta associado a uma conta.');
-    }
 
     try {
       final alreadyLinked = user.phoneNumber == normalizedPhone ||
