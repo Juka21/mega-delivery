@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../config/app_config.dart';
@@ -92,6 +93,7 @@ class AuthService {
   StreamSubscription<String>? _tokenSubscription;
 
   Future<void> inicializar() async {
+    await _auth.setLanguageCode('pt');
     await _syncCurrentUser(_auth.currentUser);
     _authSubscription ??= _auth.authStateChanges().listen(_syncCurrentUser);
     _tokenSubscription ??=
@@ -327,16 +329,22 @@ class AuthService {
     required void Function(String message) verificationFailed,
   }) async {
     final normalizedPhone = normalizePhoneNumber(phoneNumber);
-    await _auth.verifyPhoneNumber(
-      phoneNumber: normalizedPhone,
-      timeout: const Duration(seconds: 60),
-      verificationCompleted: verificationCompleted,
-      verificationFailed: (error) {
-        verificationFailed(_formatPhoneAuthError(error));
-      },
-      codeSent: codeSent,
-      codeAutoRetrievalTimeout: (_) {},
-    );
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: normalizedPhone,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: verificationCompleted,
+        verificationFailed: (error) {
+          verificationFailed(_formatPhoneAuthError(error));
+        },
+        codeSent: codeSent,
+        codeAutoRetrievalTimeout: (_) {},
+      );
+    } on FirebaseAuthException catch (error) {
+      verificationFailed(_formatPhoneAuthError(error));
+    } on PlatformException catch (error) {
+      verificationFailed(error.message ?? 'Nao foi possivel enviar o SMS.');
+    }
   }
 
   PhoneAuthCredential phoneCredentialFromCode({

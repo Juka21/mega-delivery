@@ -51,6 +51,10 @@
 	<string>Permite calcular e confirmar a morada de entrega enquanto usa a app.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Permite escolher imagens da galeria para atualizar fotografias de perfil ou produtos.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
